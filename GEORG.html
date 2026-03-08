@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEORG — Geopolitical Event Observer and Response Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --bg0: #04080f;
+  --bg1: #070d1a;
+  --bg2: #0c1424;
+  --bg3: #111c30;
+  --border: #162038;
+  --border2: #1e2e4a;
+  --accent: #00d4ff;
+  --accent2: #0066ff;
+  --green: #00ff88;
+  --amber: #ffaa00;
+  --red: #ff3355;
+  --text: #b8cce0;
+  --text2: #6a88a8;
+  --text3: #2a4060;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --body: 'Barlow', sans-serif;
+  --condensed: 'Barlow Condensed', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg0);
+  color: var(--text);
+  font-family: var(--body);
+  overflow: hidden;
+}
+
+/* ── HEADER ─────────────────────────────────────────────── */
+.g-header {
+  height: 48px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+}
+
+.g-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.g-logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  position: relative;
+}
+
+.g-logo-mark svg {
+  animation: radarSpin 6s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes radarSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.g-logo-text {
+  font-family: var(--display);
+  font-size: 1.6em;
+  letter-spacing: 6px;
+  color: #fff;
+  line-height: 1;
+}
+
+.g-logo-text span { color: var(--accent); }
+
+.g-logo-sub {
+  font-family: var(--mono);
+  font-size: 0.58em;
+  color: var(--text3);
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.g-header-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.g-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 0.68em;
+  color: var(--text2);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+}
+
+.g-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); }
+.g-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
+.g-dot.fetch { background: var(--amber); animation: blink 0.4s infinite; }
+.g-dot.err { background: var(--red); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.g-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── API BAR ─────────────────────────────────────────────── */
+.g-apibar {
+  height: 38px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  flex-shrink: 0;
+}
+
+.g-api-label {
+  font-family: var(--mono);
+  font-size: 0.65em;
+  color: var(--accent);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.g-api-input {
+  flex: 1;
+  max-width: 380px;
+  background: var(--bg0);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.78em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  outline: none;
+}
+
+.g-api-input:focus { border-color: var(--accent); }
+.g-api-input::placeholder { color: var(--text3); }
+
+.g-btn {
+  font-family: var(--condensed);
+  font-weight: 600;
+  font-size: 0.82em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 2px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.g-btn-primary {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #fff;
+}
+
+.g-btn-primary:hover { opacity: 0.85; }
+.g-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.g-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+}
+
+.g-btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+.g-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 86px);
+}
+
+/* ── MAP SECTION ─────────────────────────────────────────── */
+.g-map-section {
+  height: 52%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 2px solid var(--border2);
+  position: relative;
+}
+
+.g-map-bar {
+  height: 30px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.g-map-title {
+  font-family: var(--condensed);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.g-map-layers {
+  display: flex;
+  gap: 6px;
+}
+
+.g-layer-btn {
+  font-family: var(--mono);
+  font-size: 0.6em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text3);
+  letter-spacing: 1px;
+  transition: all 0.15s;
+}
+
+.g-layer-btn.active {
+  background: rgba(0,212,255,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#georg-map {
+  flex: 1;
+  background: var(--bg1);
+}
+
+/* Leaflet dark theme overrides */
+.leaflet-container { background: #060d1a !important; }
+.leaflet-tile { filter: invert(1) hue-rotate(180deg) saturate(0.6) brightness(0.7); }
+.leaflet-control-zoom a {
+  background: var(--bg2) !important;
+  color: var(--accent) !important;
+  border-color: var(--border2) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--bg3) !important; }
+.leaflet-control-attribution { background: rgba(4,8,15,0.8) !important; color: var(--text3) !important; font-size: 0.6em !important; }
+.leaflet-control-attribution a { color: var(--text3) !important; }
+
+/* Custom popup */
+.leaflet-popup-content-wrapper {
+  background: var(--bg2) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
+  color: var(--text) !important;
+  font-family: var(--body) !important;
+}
+.leaflet-popup-tip { background: var(--bg2) !important; }
+.leaflet-popup-close-button { color: var(--text2) !important; }
+
+.g-popup-title {
+  font-family: var(--condensed);
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.g-popup-desc { font-size: 0.82em; color: var(--text2); line-height: 1.5; }
+.g-popup-risk { font-family: var(--mono); font-size: 0.7em; margin-top: 6px; }
+.g-popup-btn {
+  margin-top: 8px;
+  font-family: var(--condensed);
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-block;
+}
+
+/* Map legend */
+.g-legend {
+  position: absolute;
+  bottom: 24px;
+  left: 10px;
+  z-index: 500;
+  background: rgba(7,13,26,0.9);
+  border: 1px solid var(--border2);
+  padding: 8px 12px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.6em;
+  color: var(--text2);
+  pointer-events: none;
+}
+
+.g-legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.g-legend-item:last-child { margin-bottom: 0; }
+.g-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── BOTTOM SECTION ──────────────────────────────────────── */
+.g-bottom {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── NEWS PANEL ──────────────────────────────────────────── */
+.g-news {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.g-panel-hdr {
+  height: 30px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.g-panel-hdr-title {
+  font-family: var(--condensed);
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.g-panel-hdr-count {
+  font-family: var(--mono);
+  font-size: 0.62em;
+  color: var(--text3);
+}
+
+.g-news-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.g-news-list::-webkit-scrollbar { width: 3px; }
+.g-news-list::-webkit-scrollbar-track { background: var(--bg1); }
+.g-news-list::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.g-news-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.g-news-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--border2);
+}
+
+.g-news-item:hover { border-color: var(--border2); background: var(--bg2); }
+.g-news-item:hover::before { background: var(--accent); }
+.g-news-item.sel { border-color: var(--accent); background: rgba(0,212,255,0.04); }
+.g-news-item.sel::before { background: var(--accent); }
+.g-news-item.crit::before { background: var(--red); }
+.g-news-item.high::before { background: var(--amber); }
+
+.g-news-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.g-news-src {
+  font-family: var(--mono);
+  font-size: 0.58em;
+  color: var(--text3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.g-sev {
+  font-family: var(--mono);
+  font-size: 0.55em;
+  padding: 1px 5px;
+  border-radius: 1px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.sev-crit { background: rgba(255,51,85,0.15); color: var(--red); border: 1px solid rgba(255,51,85,0.3); }
+.sev-high { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid rgba(255,170,0,0.3); }
+.sev-med { background: rgba(0,212,255,0.08); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+
+.g-news-title {
+  font-size: 0.78em;
+  color: var(--text);
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.g-news-actions {
+  padding: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.g-news-skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 3px;
+  margin-bottom: 5px;
+}
+
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── CHAT SECTION ────────────────────────────────────────── */
+.g-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg0);
+}
+
+.g-quickbar {
+  height: 34px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.g-quickbar::-webkit-scrollbar { height: 0; }
+
+.g-quick-label {
+  font-family: var(--mono);
+  font-size: 0.6em;
+  color: var(--text3);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.g-qbtn {
+  font-family: var(--mono);
+  font-size: 0.64em;
+  padding: 3px 9px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  letter-spacing: 0.5px;
+}
+
+.g-qbtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0,212,255,0.05);
+}
+
+.g-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.g-messages::-webkit-scrollbar { width: 3px; }
+.g-messages::-webkit-scrollbar-track { background: var(--bg0); }
+.g-messages::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.g-welcome {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text3);
+}
+
+.g-welcome-icon {
+  font-size: 2em;
+  margin-bottom: 12px;
+  display: block;
+  animation: pulse2 3s ease-in-out infinite;
+}
+
+@keyframes pulse2 { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.05);opacity:1} }
+
+.g-welcome h2 {
+  font-family: var(--display);
+  font-size: 1.3em;
+  letter-spacing: 4px;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+
+.g-welcome p { font-size: 0.82em; line-height: 1.7; color: var(--text3); margin-bottom: 4px; }
+
+.g-msg {
+  display: flex;
+  gap: 10px;
+  animation: msgIn 0.25s ease;
+}
+
+@keyframes msgIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+.g-msg.user { flex-direction: row-reverse; }
+
+.g-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.62em;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.g-avatar.ai {
+  background: rgba(0,102,255,0.2);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--accent);
+  font-family: var(--display);
+  font-size: 0.85em;
+  letter-spacing: 1px;
+}
+
+.g-avatar.user {
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.25);
+  color: var(--green);
+}
+
+.g-msg-body { flex: 1; min-width: 0; }
+.g-msg.user .g-msg-body { align-items: flex-end; display: flex; flex-direction: column; }
+
+.g-msg-meta {
+  font-family: var(--mono);
+  font-size: 0.58em;
+  color: var(--text3);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.g-bubble {
+  padding: 10px 14px;
+  border-radius: 3px;
+  font-size: 0.84em;
+  line-height: 1.65;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.g-msg.ai .g-bubble {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-left: 2px solid var(--accent);
+  color: var(--text);
+}
+
+.g-msg.user .g-bubble {
+  background: rgba(0,255,136,0.05);
+  border: 1px solid rgba(0,255,136,0.15);
+  color: var(--text);
+  text-align: right;
+}
+
+.g-bubble h3 {
+  font-family: var(--condensed);
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+  margin: 10px 0 5px;
+  text-transform: uppercase;
+}
+
+.g-bubble h3:first-child { margin-top: 0; }
+.g-bubble p { margin-bottom: 8px; }
+.g-bubble p:last-child { margin-bottom: 0; }
+.g-bubble strong { color: var(--accent); font-weight: 600; }
+.g-bubble em { color: var(--amber); font-style: normal; font-weight: 600; }
+.g-bubble ul { padding-left: 16px; margin-bottom: 8px; }
+.g-bubble li { margin-bottom: 4px; color: var(--text2); }
+
+.g-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+}
+
+.g-tdot {
+  width: 5px; height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: tdot 1.2s infinite;
+}
+
+.g-tdot:nth-child(2) { animation-delay: 0.2s; }
+.g-tdot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes tdot { 0%,60%,100%{transform:translateY(0);opacity:0.3} 30%{transform:translateY(-5px);opacity:1} }
+
+/* ── INPUT ───────────────────────────────────────────────── */
+.g-input-section {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.g-input-row { display: flex; gap: 8px; align-items: flex-end; }
+
+.g-textarea {
+  flex: 1;
+  background: var(--bg0);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 0.86em;
+  padding: 8px 12px;
+  border-radius: 3px;
+  outline: none;
+  resize: none;
+  min-height: 38px;
+  max-height: 100px;
+  line-height: 1.4;
+  transition: border-color 0.15s;
+}
+
+.g-textarea:focus { border-color: var(--accent); }
+.g-textarea::placeholder { color: var(--text3); }
+
+.g-ctx-bar {
+  font-family: var(--mono);
+  font-size: 0.6em;
+  color: var(--text3);
+  padding: 4px 0 0;
+  letter-spacing: 1px;
+}
+
+.g-ctx-bar span { color: var(--accent); }
+
+/* ── TOAST ───────────────────────────────────────────────── */
+.g-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  padding: 10px 16px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.74em;
+  color: var(--text);
+  z-index: 9999;
+  display: none;
+  animation: toastIn 0.25s ease;
+}
+
+@keyframes toastIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* Risk overlay colors for map */
+.risk-overlay { stroke: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="g-header">
+  <div class="g-logo">
+    <div class="g-logo-mark">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <circle cx="15" cy="15" r="13" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4 2" opacity="0.4"/>
+        <circle cx="15" cy="15" r="8" stroke="#0066ff" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.7"/>
+        <circle cx="15" cy="15" r="3" fill="#00d4ff" opacity="0.9"/>
+        <line x1="15" y1="2" x2="15" y2="8" stroke="#00d4ff" stroke-width="1.5" opacity="0.8"/>
+      </svg>
+    </div>
+    <div>
+      <div class="g-logo-text">GE<span>O</span>RG</div>
+      <div class="g-logo-sub">GEOPOLITICAL EVENT OBSERVER & RESPONSE GENERATOR</div>
+    </div>
+  </div>
+  <div class="g-header-center">
+    <div class="g-pill"><div class="g-dot" id="aiDot"></div><span id="aiStatus">OFFLINE</span></div>
+    <div class="g-pill"><div class="g-dot" id="newsDot"></div><span id="newsStatus">NEWS: —</span></div>
+    <div class="g-pill" id="ctxPill" style="display:none"><span id="ctxCount">0 in context</span></div>
+  </div>
+  <div class="g-header-right">
+    <button class="g-btn g-btn-ghost" onclick="clearChat()" style="font-size:0.7em;">CLEAR CHAT</button>
+  </div>
+</div>
+
+<!-- API BAR -->
+<div class="g-apibar">
+  <span class="g-api-label">GROQ KEY ▸</span>
+  <input type="password" class="g-api-input" id="apiInput" placeholder="gsk_... paste your Groq API key here"/>
+  <button class="g-btn g-btn-primary" onclick="connectKey()">CONNECT</button>
+  <button class="g-btn g-btn-ghost" onclick="clearKey()" style="font-size:0.72em;">CLEAR</button>
+  <span style="font-family:var(--mono);font-size:0.6em;color:var(--text3);margin-left:8px;" id="keyHint">
+    Free key at console.groq.com
+  </span>
+</div>
+
+<!-- LAYOUT -->
+<div class="g-layout">
+
+  <!-- MAP SECTION -->
+  <div class="g-map-section">
+    <div class="g-map-bar">
+      <span class="g-map-title">⬡ GLOBAL INTELLIGENCE MAP</span>
+      <div class="g-map-layers">
+        <button class="g-layer-btn active" id="layerConflict" onclick="toggleLayer('conflict')">CONFLICTS</button>
+        <button class="g-layer-btn active" id="layerBases" onclick="toggleLayer('bases')">BASES</button>
+        <button class="g-layer-btn active" id="layerRisk" onclick="toggleLayer('risk')">RISK HEAT</button>
+        <button class="g-layer-btn" id="layerNews" onclick="toggleLayer('news')">NEWS PINS</button>
+      </div>
+    </div>
+    <div id="georg-map"></div>
+    <div class="g-legend">
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ff3355"></div>Active Conflict</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ffaa00"></div>High Tension</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#0066ff;border-radius:2px;"></div>Military Base</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#00d4ff"></div>News Event</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SECTION -->
+  <div class="g-bottom">
+
+    <!-- NEWS PANEL -->
+    <div class="g-news">
+      <div class="g-panel-hdr">
+        <span class="g-panel-hdr-title">⚡ LIVE INTEL</span>
+        <span class="g-panel-hdr-count" id="newsCount">—</span>
+      </div>
+      <div class="g-news-list" id="newsList">
+        <div style="padding:20px 10px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:0.72em;line-height:2;">
+          Connect API key<br>then refresh intel feed
+        </div>
+      </div>
+      <div class="g-news-actions">
+        <button class="g-btn g-btn-ghost" style="flex:1;font-size:0.68em;" onclick="fetchNews()">↺ REFRESH</button>
+        <button class="g-btn g-btn-ghost" style="flex:1;font-size:0.68em;" onclick="selectAll()">⚡ ALL</button>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="g-chat">
+      <div class="g-quickbar">
+        <span class="g-quick-label">QUICK ▸</span>
+        <button class="g-qbtn" onclick="qp('predict')">🎯 Predict Escalations</button>
+        <button class="g-qbtn" onclick="qp('consequences')">⚡ Analyze Consequences</button>
+        <button class="g-qbtn" onclick="qp('scenarios')">🔀 Scenarios (Best/Base/Worst)</button>
+        <button class="g-qbtn" onclick="qp('hotspots')">🌍 Rank Hotspots</button>
+        <button class="g-qbtn" onclick="qp('brief')">📋 Intel Brief</button>
+        <button class="g-qbtn" onclick="qp('infrastructure')">🔌 Infrastructure Risk</button>
+        <button class="g-qbtn" onclick="qp('economic')">📊 Economic Impact</button>
+      </div>
+
+      <div class="g-messages" id="messages">
+        <div class="g-welcome" id="welcomeMsg">
+          <span class="g-welcome-icon">🛰</span>
+          <h2>GEORG ONLINE</h2>
+          <p>Your AI geopolitical analyst with live map intelligence.</p>
+          <p style="margin-top:12px;font-size:0.75em;">→ Paste Groq key above &amp; click CONNECT<br>→ Click ↺ REFRESH to load live news<br>→ Click news items to add as context<br>→ Use quick prompts or ask anything</p>
+        </div>
+      </div>
+
+      <div class="g-input-section">
+        <div class="g-input-row">
+          <textarea class="g-textarea" id="chatInput" placeholder="Ask GEORG... e.g. 'What are the consequences if Iran blocks the Strait of Hormuz?'" rows="1"></textarea>
+          <button class="g-btn g-btn-primary" id="sendBtn" onclick="send()" disabled>SEND</button>
+        </div>
+        <div class="g-ctx-bar">CONTEXT: <span id="ctxInfo">no articles selected</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="g-toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let apiKey = localStorage.getItem('georg_key') || '';
+let news = [];
+let history = [];
+let loading = false;
+let map, conflictLayer, basesLayer, riskLayer, newsLayer;
+let layers = { conflict: true, bases: true, risk: true, news: false };
+
+// ═══════════════════════════════════════════════════════
+// MAP DATA
+// ═══════════════════════════════════════════════════════
+const CONFLICT_ZONES = [
+  { lat: 31.5, lon: 34.8, name: 'Gaza Strip', type: 'active', risk: 95, desc: 'Ongoing Israel-Hamas conflict. Humanitarian crisis. International ceasefire pressure.' },
+  { lat: 48.0, lon: 37.5, name: 'Eastern Ukraine', type: 'active', risk: 90, desc: 'Active Russian military operations. NATO support ongoing. High casualty rates.' },
+  { lat: 15.5, lon: 32.5, name: 'Sudan', type: 'active', risk: 85, desc: 'Civil war between SAF and RSF. 8M+ displaced. UN warns of famine.' },
+  { lat: 15.3, lon: 44.2, name: 'Yemen', type: 'active', risk: 82, desc: 'Houthi forces active. Red Sea shipping disruptions. Saudi coalition involvement.' },
+  { lat: 35.0, lon: 38.5, name: 'Syria', type: 'active', risk: 78, desc: 'Fragmented control. Turkish, US, Iranian forces present. Ongoing instability.' },
+  { lat: 9.0, lon: 7.5, name: 'Nigeria (North)', type: 'tension', risk: 70, desc: 'Boko Haram / ISWAP activity. Banditry in northwestern states.' },
+  { lat: 34.0, lon: 43.0, name: 'Iraq', type: 'tension', risk: 65, desc: 'PMF militia activity. Occasional US-Iran proxy clashes. ISIS remnants.' },
+  { lat: 32.0, lon: 53.0, name: 'Iran', type: 'tension', risk: 75, desc: 'Nuclear program escalation. Proxy network active across MENA. US sanctions.' },
+  { lat: 23.5, lon: 121.0, name: 'Taiwan Strait', type: 'tension', risk: 72, desc: 'PLA military exercises. US arms sales. Cross-strait tensions elevated.' },
+  { lat: 35.0, lon: 129.0, name: 'Korean Peninsula', type: 'tension', risk: 68, desc: 'DPRK missile tests. Nuclear program advancement. US-ROK exercises.' },
+  { lat: 12.0, lon: 15.0, name: 'Sahel Region', type: 'tension', risk: 74, desc: 'Multiple coups. Wagner/Russia presence. French forces withdrawal. Jihadist activity.' },
+  { lat: 5.5, lon: -4.0, name: "Côte d'Ivoire Border", type: 'tension', risk: 55, desc: 'Regional instability spillover from Sahel. Refugee flows.' },
+  { lat: 27.5, lon: 89.5, name: 'India-China Border', type: 'tension', risk: 58, desc: 'LAC standoff. Ongoing military buildup. Diplomatic tensions.' },
+  { lat: 60.0, lon: 24.0, name: 'Baltic Region', type: 'tension', risk: 60, desc: 'NATO reinforcement. Russian hybrid threats. Finland/Sweden NATO integration.' },
+];
+
+const MILITARY_BASES = [
+  { lat: 36.5, lon: 36.1, name: 'Incirlik Air Base', country: 'Turkey/US', flag: '🇹🇷' },
+  { lat: 11.5, lon: 43.1, name: 'Camp Lemonnier', country: 'USA (Djibouti)', flag: '🇺🇸' },
+  { lat: 26.1, lon: 50.6, name: 'NSA Bahrain', country: 'USA', flag: '🇺🇸' },
+  { lat: 25.1, lon: 55.4, name: 'Al Dhafra Air Base', country: 'USA (UAE)', flag: '🇺🇸' },
+  { lat: 29.6, lon: 47.8, name: 'Ali Al Salem Air Base', country: 'USA (Kuwait)', flag: '🇺🇸' },
+  { lat: 55.8, lon: 37.6, name: 'Moscow Military District', country: 'Russia', flag: '🇷🇺' },
+  { lat: 44.7, lon: 33.4, name: 'Sevastopol Naval Base', country: 'Russia', flag: '🇷🇺' },
+  { lat: 34.6, lon: 36.5, name: 'Khmeimim Air Base', country: 'Russia (Syria)', flag: '🇷🇺' },
+  { lat: 39.9, lon: 116.4, name: 'Beijing Military HQ', country: 'China', flag: '🇨🇳' },
+  { lat: 11.6, lon: 43.2, name: 'China Naval Base', country: 'China (Djibouti)', flag: '🇨🇳' },
+  { lat: 35.7, lon: 139.8, name: 'Camp Zama', country: 'USA (Japan)', flag: '🇺🇸' },
+  { lat: 37.5, lon: 127.0, name: 'USFK HQ', country: 'USA (Korea)', flag: '🇺🇸' },
+  { lat: 48.4, lon: 14.5, name: 'NATO HQ Austria Sector', country: 'NATO', flag: '🌐' },
+  { lat: 51.5, lon: -0.1, name: 'Northwood HQ', country: 'UK', flag: '🇬🇧' },
+  { lat: 43.9, lon: 12.5, name: 'USAF Aviano', country: 'USA (Italy)', flag: '🇺🇸' },
+];
+
+const COUNTRY_RISK = [
+  { country: 'Syria', lat: 35, lon: 38, risk: 88 },
+  { country: 'Yemen', lat: 15, lon: 47, risk: 85 },
+  { country: 'Sudan', lat: 15, lon: 30, risk: 84 },
+  { country: 'Gaza/Palestine', lat: 31.5, lon: 34.5, risk: 95 },
+  { country: 'Iraq', lat: 33, lon: 44, risk: 65 },
+  { country: 'Libya', lat: 27, lon: 17, risk: 70 },
+  { country: 'Somalia', lat: 6, lon: 46, risk: 78 },
+  { country: 'DRC', lat: -3, lon: 24, risk: 75 },
+  { country: 'Mali', lat: 17, lon: -2, risk: 72 },
+  { country: 'Burkina Faso', lat: 12, lon: -2, risk: 74 },
+  { country: 'Niger', lat: 17, lon: 8, risk: 68 },
+  { country: 'Ethiopia', lat: 9, lon: 40, risk: 65 },
+  { country: 'Myanmar', lat: 19, lon: 97, risk: 76 },
+  { country: 'Pakistan', lat: 30, lon: 69, risk: 62 },
+  { country: 'Haiti', lat: 19, lon: -73, risk: 80 },
+  { country: 'Venezuela', lat: 8, lon: -66, risk: 60 },
+  { country: 'North Korea', lat: 40, lon: 127, risk: 70 },
+  { country: 'Ukraine', lat: 49, lon: 32, risk: 90 },
+  { country: 'Iran', lat: 33, lon: 54, risk: 75 },
+  { country: 'Azerbaijan', lat: 40, lon: 47, risk: 55 },
+];
+
+// ═══════════════════════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════════════════════
+function initMap() {
+  map = L.map('georg-map', {
+    center: [20, 15],
+    zoom: 2,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 18,
+  }).addTo(map);
+
+  conflictLayer = L.layerGroup().addTo(map);
+  basesLayer = L.layerGroup().addTo(map);
+  riskLayer = L.layerGroup().addTo(map);
+  newsLayer = L.layerGroup();
+
+  renderConflicts();
+  renderBases();
+  renderRisk();
+}
+
+function riskColor(risk) {
+  if (risk >= 80) return '#ff3355';
+  if (risk >= 65) return '#ffaa00';
+  if (risk >= 50) return '#ffcc44';
+  return '#44aaff';
+}
+
+function renderConflicts() {
+  if (!conflictLayer) return;
+  conflictLayer.clearLayers();
+  if (!layers.conflict) return;
+
+  CONFLICT_ZONES.forEach(z => {
+    const isActive = z.type === 'active';
+    const color = isActive ? '#ff3355' : '#ffaa00';
+    const radius = isActive ? 18 : 14;
+
+    const circle = L.circleMarker([z.lat, z.lon], {
+      radius,
+      fillColor: color,
+      fillOpacity: isActive ? 0.25 : 0.15,
+      color,
+      weight: isActive ? 2 : 1,
+      opacity: 0.8,
+      dashArray: isActive ? null : '4 3',
+    });
+
+    const innerDot = L.circleMarker([z.lat, z.lon], {
+      radius: isActive ? 5 : 4,
+      fillColor: color,
+      fillOpacity: 0.9,
+      color: '#fff',
+      weight: 1,
+      opacity: 0.6,
+    });
+
+    const popupContent = `
+      <div class="g-popup-title">${z.name}</div>
+      <div class="g-popup-desc">${z.desc}</div>
+      <div class="g-popup-risk" style="color:${color}">RISK INDEX: ${z.risk}/100 · ${z.type.toUpperCase()}</div>
+      <div class="g-popup-btn" onclick="askAbout('${z.name}')">ASK GEORG ABOUT THIS</div>
+    `;
+
+    circle.bindPopup(popupContent, { maxWidth: 260 });
+    innerDot.bindPopup(popupContent, { maxWidth: 260 });
+
+    conflictLayer.addLayer(circle);
+    conflictLayer.addLayer(innerDot);
+  });
+}
+
+function renderBases() {
+  if (!basesLayer) return;
+  basesLayer.clearLayers();
+  if (!layers.bases) return;
+
+  MILITARY_BASES.forEach(b => {
+    const icon = L.divIcon({
+      html: `<div style="
+        width:10px;height:10px;
+        background:#0066ff;
+        border:1px solid #00aaff;
+        transform:rotate(45deg);
+        box-shadow:0 0 6px rgba(0,102,255,0.6);
+      "></div>`,
+      className: '',
+      iconSize: [10, 10],
+      iconAnchor: [5, 5],
+    });
+
+    const marker = L.marker([b.lat, b.lon], { icon });
+    marker.bindPopup(`
+      <div class="g-popup-title">${b.flag} ${b.name}</div>
+      <div class="g-popup-desc">${b.country}</div>
+      <div class="g-popup-btn" onclick="askAbout('${b.name} military base')">ASK GEORG</div>
+    `, { maxWidth: 220 });
+
+    basesLayer.addLayer(marker);
+  });
+}
+
+function renderRisk() {
+  if (!riskLayer) return;
+  riskLayer.clearLayers();
+  if (!layers.risk) return;
+
+  COUNTRY_RISK.forEach(c => {
+    const color = riskColor(c.risk);
+    const r = 8 + (c.risk / 100) * 28;
+
+    const pulse = L.circleMarker([c.lat, c.lon], {
+      radius: r,
+      fillColor: color,
+      fillOpacity: 0.08,
+      color: color,
+      weight: 0.5,
+      opacity: 0.2,
+    });
+
+    riskLayer.addLayer(pulse);
+  });
+}
+
+function renderNewsOnMap(items) {
+  newsLayer.clearLayers();
+  if (!layers.news) return;
+
+  const GEO_KEYWORDS = {
+    'gaza': [31.5, 34.5], 'israel': [31.7, 35.2], 'ukraine': [49, 32],
+    'russia': [55.8, 37.6], 'iran': [32, 53], 'china': [35, 105],
+    'taiwan': [23.5, 121], 'korea': [37.5, 127], 'syria': [35, 38],
+    'yemen': [15, 47], 'sudan': [15, 30], 'iraq': [33, 44],
+    'pakistan': [30, 69], 'myanmar': [19, 97], 'sahel': [15, 0],
+    'mali': [17, -2], 'nato': [48, 14], 'lebanon': [33.9, 35.5],
+    'hezbollah': [33.9, 35.5], 'hamas': [31.5, 34.5],
+    'africa': [0, 20], 'europe': [50, 10], 'asia': [30, 100],
+  };
+
+  items.filter(n => n.selected).forEach(n => {
+    const title = n.title.toLowerCase();
+    let coords = null;
+
+    for (const [kw, pos] of Object.entries(GEO_KEYWORDS)) {
+      if (title.includes(kw)) { coords = pos; break; }
+    }
+
+    if (!coords) return;
+
+    const jitter = [(Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3];
+    const icon = L.divIcon({
+      html: `<div style="
+        background:var(--accent,#00d4ff);
+        color:#000;
+        font-size:8px;
+        font-family:monospace;
+        padding:2px 5px;
+        border-radius:2px;
+        white-space:nowrap;
+        max-width:120px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        box-shadow:0 2px 8px rgba(0,0,0,0.5);
+        cursor:pointer;
+      ">${n.source}</div>`,
+      className: '',
+      iconAnchor: [0, 0],
+    });
+
+    const marker = L.marker([coords[0] + jitter[0], coords[1] + jitter[1]], { icon });
+    marker.bindPopup(`
+      <div class="g-popup-title">${n.source}</div>
+      <div class="g-popup-desc">${n.title}</div>
+      <div class="g-popup-btn" onclick="askAboutNews('${n.title.replace(/'/g,"\\'")}')">ASK GEORG</div>
+    `, { maxWidth: 260 });
+    newsLayer.addLayer(marker);
+  });
+}
+
+function toggleLayer(name) {
+  layers[name] = !layers[name];
+  document.getElementById('layer' + name.charAt(0).toUpperCase() + name.slice(1))
+    .classList.toggle('active', layers[name]);
+
+  if (name === 'conflict') renderConflicts();
+  else if (name === 'bases') renderBases();
+  else if (name === 'risk') renderRisk();
+  else if (name === 'news') {
+    if (layers.news) { map.addLayer(newsLayer); renderNewsOnMap(news); }
+    else map.removeLayer(newsLayer);
+  }
+}
+
+function askAbout(location) {
+  document.querySelectorAll('.leaflet-popup-close-button').forEach(b => b.click());
+  document.getElementById('chatInput').value =
+    `Analyze the current situation in ${location}. What are the key risks, actors involved, and most likely scenarios in the next 30 days?`;
+  send();
+}
+
+function askAboutNews(title) {
+  document.querySelectorAll('.leaflet-popup-close-button').forEach(b => b.click());
+  document.getElementById('chatInput').value =
+    `Analyze this event: "${title}". What are the geopolitical implications and likely consequences?`;
+  send();
+}
+
+// ═══════════════════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════════════════
+function clearKey() {
+  apiKey = '';
+  localStorage.removeItem('georg_key');
+  document.getElementById('apiInput').value = '';
+  document.getElementById('keyHint').textContent = 'Free key at console.groq.com';
+  document.getElementById('keyHint').style.color = '';
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('aiDot').className = 'g-dot err';
+  document.getElementById('aiStatus').textContent = 'OFFLINE';
+  toast('Key cleared — paste fresh key and click CONNECT', 'warn');
+}
+
+function connectKey() {
+  const val = document.getElementById('apiInput').value.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '');
+  if (!val.startsWith('gsk_')) {
+    toast('⚠ Key must start with gsk_ — get yours at console.groq.com', 'warn');
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('georg_key', apiKey);
+  setStatus('online');
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('keyHint').textContent = '● CONNECTED';
+  document.getElementById('keyHint').style.color = 'var(--green)';
+  fetchNews();
+  toast('✓ Connected — fetching intel...', 'ok');
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('aiDot');
+  const txt = document.getElementById('aiStatus');
+  if (s === 'online') { dot.className = 'g-dot live'; txt.textContent = 'ONLINE'; }
+  else if (s === 'thinking') { dot.className = 'g-dot fetch'; txt.textContent = 'THINKING'; }
+  else { dot.className = 'g-dot err'; txt.textContent = 'ERROR'; }
+}
+
+// ═══════════════════════════════════════════════════════
+// NEWS
+// ═══════════════════════════════════════════════════════
+const FEEDS = [
+  { url: 'https://feeds.reuters.com/reuters/worldNews', src: 'Reuters' },
+  { url: 'https://rss.cnn.com/rss/edition_world.rss', src: 'CNN' },
+  { url: 'https://www.aljazeera.com/xml/rss/all.xml', src: 'Al Jazeera' },
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', src: 'BBC' },
+  { url: 'https://www.defensenews.com/arc/outboundfeeds/rss/', src: 'Defense News' },
+];
+
+const CRIT_KW = ['killed','strike','attack','war','explosion','missile','nuclear','invasion','coup','assassination','airstrike'];
+const HIGH_KW = ['conflict','military','troops','sanctions','crisis','threat','deployed','clashes','casualties','protest','ceasefire'];
+
+function classify(text) {
+  const t = text.toLowerCase();
+  if (CRIT_KW.some(k => t.includes(k))) return 'crit';
+  if (HIGH_KW.some(k => t.includes(k))) return 'high';
+  return 'med';
+}
+
+async function fetchNews() {
+  if (!apiKey) { toast('⚠ Connect your Groq key first', 'warn'); return; }
+
+  const nd = document.getElementById('newsDot');
+  const ns = document.getElementById('newsStatus');
+  nd.className = 'g-dot fetch';
+  ns.textContent = 'NEWS: FETCHING...';
+
+  const list = document.getElementById('newsList');
+  list.innerHTML = Array(5).fill('<div class="g-news-skeleton" style="height:56px;"></div>').join('');
+
+  const proxy = 'https://api.allorigins.win/get?url=';
+  let all = [];
+
+  await Promise.allSettled(FEEDS.map(async f => {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(f.url));
+      const data = await res.json();
+      const xml = new DOMParser().parseFromString(data.contents, 'text/xml');
+      Array.from(xml.querySelectorAll('item')).slice(0, 8).forEach(item => {
+        const title = (item.querySelector('title')?.textContent || '').replace(/<[^>]*>/g,'').trim();
+        const desc = (item.querySelector('description')?.textContent || '').replace(/<[^>]*>/g,'').trim().slice(0,180);
+        if (title && title.length > 10) {
+          all.push({ title, desc, source: f.src, sev: classify(title + ' ' + desc), selected: false });
+        }
+      });
+    } catch(e) {}
+  }));
+
+  if (all.length === 0) {
+    all = getDemoNews();
+    ns.textContent = 'NEWS: DEMO DATA';
+  } else {
+    ns.textContent = `NEWS: ${all.length} ITEMS`;
+  }
+
+  const sevOrd = { crit:0, high:1, med:2 };
+  all.sort((a,b) => sevOrd[a.sev] - sevOrd[b.sev]);
+  news = all;
+
+  nd.className = 'g-dot live';
+  document.getElementById('newsCount').textContent = `${news.length} items`;
+  renderNews();
+  updateCtx();
+}
+
+function getDemoNews() {
+  return [
+    { title:'Israeli strikes continue in Gaza as ceasefire talks stall', source:'Reuters', sev:'crit', selected:true, desc:'Israeli military operations continue amid international pressure for ceasefire.' },
+    { title:'Russia advances in eastern Ukraine, NATO holds emergency session', source:'BBC', sev:'crit', selected:true, desc:'Russian forces push toward Kharkiv region as NATO allies convene.' },
+    { title:'Iran increases uranium enrichment levels, IAEA reports', source:'Al Jazeera', sev:'high', selected:true, desc:'IAEA confirms higher enrichment levels, western nations alarmed.' },
+    { title:'China conducts military exercises near Taiwan strait', source:'Defense News', sev:'high', selected:true, desc:'PLA Navy vessels in increased activity near Taiwan.' },
+    { title:'Sudan conflict displaces over 8 million, UN warns of famine', source:'CNN', sev:'high', selected:false, desc:'RSF and SAF fighting continues, humanitarian crisis deepens.' },
+    { title:'US imposes new sanctions on North Korea missile program', source:'Reuters', sev:'med', selected:false, desc:'Treasury Department targets entities supporting DPRK weapons development.' },
+    { title:'Houthi attacks on Red Sea shipping continue despite strikes', source:'BBC', sev:'high', selected:false, desc:'Maritime disruptions persist affecting global supply chains.' },
+    { title:'Wagner group expands presence in Sahel amid French withdrawal', source:'Al Jazeera', sev:'high', selected:false, desc:'Russian mercenaries fill security vacuum left by departing French forces.' },
+  ];
+}
+
+function renderNews() {
+  const list = document.getElementById('newsList');
+  list.innerHTML = news.map((n,i) => `
+    <div class="g-news-item ${n.sev} ${n.selected ? 'sel' : ''}" onclick="toggleNews(${i})">
+      <div class="g-news-meta">
+        <span class="g-news-src">${n.source}</span>
+        <span class="g-sev sev-${n.sev}">${n.sev === 'crit' ? 'CRITICAL' : n.sev === 'high' ? 'HIGH' : 'MED'}</span>
+      </div>
+      <div class="g-news-title">${n.title}</div>
+    </div>
+  `).join('');
+}
+
+function toggleNews(i) {
+  news[i].selected = !news[i].selected;
+  renderNews();
+  updateCtx();
+  if (layers.news) renderNewsOnMap(news);
+}
+
+function selectAll() {
+  news.forEach(n => n.selected = true);
+  renderNews();
+  updateCtx();
+  if (layers.news) renderNewsOnMap(news);
+  toast(`✓ All ${news.length} articles selected`, 'ok');
+}
+
+function updateCtx() {
+  const sel = news.filter(n => n.selected).length;
+  const info = document.getElementById('ctxInfo');
+  const pill = document.getElementById('ctxPill');
+  const ctxCount = document.getElementById('ctxCount');
+
+  info.innerHTML = sel > 0
+    ? `<span>${sel} articles selected</span> · ${news.length - sel} available · click items to toggle`
+    : `${news.length} articles loaded — click to select as context`;
+
+  if (sel > 0) {
+    pill.style.display = 'flex';
+    ctxCount.textContent = `${sel} in context`;
+  } else {
+    pill.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// QUICK PROMPTS
+// ═══════════════════════════════════════════════════════
+const PROMPTS = {
+  predict: 'Based on the current news feed, which conflicts or tensions are most likely to escalate in the next 30 days? Provide specific predictions with probability assessments (e.g. 70% likelihood) and identify the key triggers to watch for each.',
+  consequences: 'Analyze the most significant ongoing events in the news feed. What are the likely cascading consequences — economic, military, humanitarian, and geopolitical — over the next 3 to 6 months? Consider second and third-order effects.',
+  scenarios: 'For the single most critical situation in the current news, generate 3 distinct scenario simulations:\n\n**BEST CASE** — de-escalation path\n**BASE CASE** — most likely trajectory\n**WORST CASE** — catastrophic escalation\n\nFor each: describe the chain of events, key decision points, actors involved, and final outcome.',
+  hotspots: 'Identify and rank the top 5 geopolitical hotspots from the current news feed. For each provide: current threat level (0-100), key actors, probability of escalation, critical infrastructure at risk, and recommended watch indicators.',
+  brief: 'Generate a full Strategic Intelligence Brief with these sections:\n\n### EXECUTIVE SUMMARY\n### CRITICAL THREATS (top 3)\n### REGIONAL ASSESSMENTS\n### ECONOMIC & ENERGY RISKS\n### CONFLICT PREDICTIONS\n### RECOMMENDED WATCHLIST',
+  infrastructure: 'Analyze the risk to critical global infrastructure (undersea cables, pipelines, energy supply lines, shipping routes) based on the current conflict zones and news events. Which chokepoints are most at risk and what would be the global impact if compromised?',
+  economic: 'Assess the economic and financial market impacts of the current geopolitical situation. Which sectors, currencies, commodities, and trade routes face the highest risk? What is the probability of a major economic disruption in the next 90 days?',
+};
+
+function qp(type) {
+  document.getElementById('chatInput').value = PROMPTS[type] || '';
+  autoResize();
+  send();
+}
+
+// ═══════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════
+async function send() {
+  if (loading || !apiKey) return;
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  input.style.height = '38px';
+  loading = true;
+  document.getElementById('sendBtn').disabled = true;
+  setStatus('thinking');
+
+  const welcome = document.getElementById('welcomeMsg');
+  if (welcome) welcome.remove();
+
+  addMsg('user', msg);
+  history.push({ role: 'user', content: msg });
+
+  const ctx = news.filter(n => n.selected);
+  const ctxText = ctx.length > 0
+    ? ctx.map(n => `[${n.source}] ${n.title}${n.desc ? ': ' + n.desc : ''}`).join('\n')
+    : news.slice(0, 8).map(n => `[${n.source}] ${n.title}`).join('\n') || 'No live news loaded.';
+
+  const systemPrompt = `You are GEORG — Geopolitical Event Observer and Response Generator. You are an elite intelligence analyst with deep expertise in military affairs, conflict dynamics, international relations, and strategic forecasting.
+
+You have access to a live global intelligence map showing conflict zones, military bases, and country risk indices, plus a live news feed.
+
+ANALYTICAL STANDARDS:
+- Write in intelligence-grade, structured prose
+- Use ### for section headers
+- Bold **key entities** and locations  
+- Assign probability percentages to predictions
+- Consider second and third-order effects
+- Reference specific actors, countries, and geographic chokepoints
+- Flag *urgent* developments with emphasis
+- Be specific — avoid vague generalities
+
+LIVE NEWS CONTEXT:
+${ctxText}
+
+Ground all analysis in the provided intelligence. Be direct, precise, and strategic.`;
+
+  const typing = addTyping();
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...history.slice(-14),
+        ],
+        temperature: 0.72,
+        max_tokens: 1400,
+      }),
+    });
+
+    typing.remove();
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const detail = err.error?.message || 'Unknown error';
+      const keyPreview = apiKey ? apiKey.slice(0,8) + '...' + apiKey.slice(-4) : 'EMPTY';
+      if (res.status === 401) {
+        addMsg('ai', `⚠ **Invalid API key** (status 401).\n\nKey in use: \`${keyPreview}\`\n\nPlease clear your key, copy it fresh from console.groq.com, and click CONNECT again.\n\nGroq error: ${detail}`);
+        setStatus('error');
+      } else {
+        addMsg('ai', `⚠ **API Error ${res.status}:** ${detail}\n\nKey in use: \`${keyPreview}\``);
+        setStatus('error');
+      }
+      return;
+    }
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || 'No response received.';
+    history.push({ role: 'assistant', content: reply });
+    addMsg('ai', reply);
+    setStatus('online');
+
+  } catch(e) {
+    typing.remove();
+    addMsg('ai', `⚠ **Connection error.** Check your internet connection.\n${e.message}`);
+    setStatus('error');
+  } finally {
+    loading = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+function addMsg(role, content) {
+  const el = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `g-msg ${role}`;
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour:'2-digit', minute:'2-digit' });
+  div.innerHTML = `
+    <div class="g-avatar ${role}">${role === 'ai' ? 'G' : '▲'}</div>
+    <div class="g-msg-body">
+      <div class="g-msg-meta">${role === 'ai' ? 'GEORG ANALYST' : 'OPERATOR'} · ${time}</div>
+      <div class="g-bubble">${fmt(content)}</div>
+    </div>
+  `;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  const el = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'g-msg ai';
+  div.innerHTML = `
+    <div class="g-avatar ai">G</div>
+    <div class="g-msg-body">
+      <div class="g-msg-meta">GEORG ANALYST · Analyzing...</div>
+      <div class="g-bubble">
+        <div class="g-typing">
+          <div class="g-tdot"></div><div class="g-tdot"></div><div class="g-tdot"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  return div;
+}
+
+function fmt(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/### (.+)/g,'<h3>$1</h3>')
+    .replace(/## (.+)/g,'<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^[-•] (.+)/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+}
+
+function clearChat() {
+  history = [];
+  const el = document.getElementById('messages');
+  el.innerHTML = `<div class="g-welcome" id="welcomeMsg">
+    <span class="g-welcome-icon">🛰</span>
+    <h2>GEORG ONLINE</h2>
+    <p>Chat cleared. Ready for new analysis.</p>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function autoResize() {
+  const t = document.getElementById('chatInput');
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 100) + 'px';
+}
+
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.borderColor = type === 'ok' ? 'var(--green)' : type === 'warn' ? 'var(--amber)' : 'var(--red)';
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => el.style.display = 'none', 3500);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (typeof L === 'undefined') {
+    document.getElementById('georg-map').innerHTML =
+      '<div style="color:var(--text3);font-family:var(--mono);font-size:0.75em;padding:20px;text-align:center;">⚠ Map requires internet connection to load</div>';
+  } else {
+    initMap();
+  }
+
+  if (apiKey) {
+    document.getElementById('apiInput').value = apiKey;
+    setStatus('online');
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('keyHint').textContent = '● CONNECTED';
+    document.getElementById('keyHint').style.color = 'var(--green)';
+    fetchNews();
+  }
+
+  const input = document.getElementById('chatInput');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  input.addEventListener('input', autoResize);
+});
+</script>
+</body>
+</html>
