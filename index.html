@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEORG — Geopolitical Event Observer and Response Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --bg0:#04080f;--bg1:#070d1a;--bg2:#0c1424;--bg3:#111c30;
+  --border:#162038;--border2:#1e2e4a;
+  --accent:#00d4ff;--accent2:#0066ff;
+  --green:#00ff88;--amber:#ffaa00;--red:#ff3355;
+  --text:#b8cce0;--text2:#6a88a8;--text3:#2a4060;
+  --mono:'Share Tech Mono',monospace;--display:'Bebas Neue',sans-serif;
+  --body:'Barlow',sans-serif;--condensed:'Barlow Condensed',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg0);color:var(--text);font-family:var(--body);overflow:hidden}
+.g-header{height:48px;background:var(--bg1);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;z-index:1000}
+.g-logo{display:flex;align-items:center;gap:12px}
+.g-logo-mark svg{animation:radarSpin 6s linear infinite;transform-origin:center}
+@keyframes radarSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.g-logo-text{font-family:var(--display);font-size:1.6em;letter-spacing:6px;color:#fff;line-height:1}
+.g-logo-text span{color:var(--accent)}
+.g-logo-sub{font-family:var(--mono);font-size:0.56em;color:var(--text3);letter-spacing:2px;margin-top:2px}
+.g-header-center{display:flex;align-items:center;gap:6px}
+.g-pill{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:0.68em;color:var(--text2);background:var(--bg2);border:1px solid var(--border);padding:3px 10px;border-radius:2px;letter-spacing:1px}
+.g-dot{width:5px;height:5px;border-radius:50%;background:var(--text3)}
+.g-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+.g-dot.fetch{background:var(--amber);animation:blink 0.4s infinite}
+.g-dot.err{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.g-header-right{display:flex;align-items:center;gap:8px}
+.g-apibar{height:38px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 14px;flex-shrink:0}
+.g-api-label{font-family:var(--mono);font-size:0.65em;color:var(--accent);letter-spacing:2px;white-space:nowrap}
+.g-api-input{flex:1;max-width:380px;background:var(--bg0);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.78em;padding:4px 10px;border-radius:2px;outline:none}
+.g-api-input:focus{border-color:var(--accent)}
+.g-api-input::placeholder{color:var(--text3)}
+.g-btn{font-family:var(--condensed);font-weight:600;font-size:0.82em;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:2px;border:none;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.g-btn-primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+.g-btn-primary:hover{opacity:0.85}
+.g-btn-primary:disabled{opacity:0.35;cursor:not-allowed}
+.g-btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.g-btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.g-layout{display:flex;flex-direction:column;height:calc(100vh - 86px)}
+.g-map-section{height:52%;flex-shrink:0;display:flex;flex-direction:column;border-bottom:2px solid var(--border2);position:relative}
+.g-map-bar{height:30px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;flex-shrink:0}
+.g-map-title{font-family:var(--condensed);font-size:0.75em;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase}
+.g-map-layers{display:flex;gap:6px}
+.g-layer-btn{font-family:var(--mono);font-size:0.6em;padding:2px 8px;border-radius:2px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text3);letter-spacing:1px;transition:all 0.15s}
+.g-layer-btn.active{background:rgba(0,212,255,0.1);border-color:var(--accent);color:var(--accent)}
+#georg-map{flex:1;background:var(--bg1)}
+.leaflet-container{background:#060d1a!important}
+.leaflet-tile{filter:invert(1) hue-rotate(180deg) saturate(0.6) brightness(0.7)}
+.leaflet-control-zoom a{background:var(--bg2)!important;color:var(--accent)!important;border-color:var(--border2)!important}
+.leaflet-control-attribution{background:rgba(4,8,15,0.8)!important;color:var(--text3)!important;font-size:0.6em!important}
+.leaflet-control-attribution a{color:var(--text3)!important}
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;border:1px solid var(--border2)!important;border-radius:3px!important;box-shadow:0 4px 20px rgba(0,0,0,0.6)!important;color:var(--text)!important;font-family:var(--body)!important}
+.leaflet-popup-tip{background:var(--bg2)!important}
+.leaflet-popup-close-button{color:var(--text2)!important}
+.g-popup-title{font-family:var(--condensed);font-weight:700;font-size:0.95em;letter-spacing:1px;color:var(--accent);margin-bottom:4px}
+.g-popup-desc{font-size:0.82em;color:var(--text2);line-height:1.5}
+.g-popup-risk{font-family:var(--mono);font-size:0.68em;margin-top:5px}
+.g-popup-btn{margin-top:8px;font-family:var(--condensed);font-size:0.75em;font-weight:600;letter-spacing:1px;padding:4px 10px;background:rgba(0,212,255,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:2px;cursor:pointer;display:inline-block}
+.g-legend{position:absolute;bottom:24px;left:10px;z-index:500;background:rgba(7,13,26,0.92);border:1px solid var(--border2);padding:8px 12px;border-radius:3px;font-family:var(--mono);font-size:0.58em;color:var(--text2);pointer-events:none}
+.g-legend-item{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.g-legend-item:last-child{margin-bottom:0}
+.g-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.g-bottom{flex:1;display:flex;min-height:0;overflow:hidden}
+.g-news{width:275px;flex-shrink:0;background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.g-panel-hdr{height:30px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 10px;flex-shrink:0}
+.g-panel-hdr-title{font-family:var(--condensed);font-size:0.72em;font-weight:700;letter-spacing:3px;color:var(--accent);text-transform:uppercase}
+.g-panel-hdr-count{font-family:var(--mono);font-size:0.62em;color:var(--text3)}
+.g-news-filter{height:26px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:3px;padding:0 6px;flex-shrink:0;overflow-x:auto}
+.g-news-filter::-webkit-scrollbar{height:0}
+.g-fbtn{font-family:var(--mono);font-size:0.55em;padding:2px 6px;border-radius:2px;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--text3);transition:all 0.12s;white-space:nowrap}
+.g-fbtn.on{background:rgba(0,212,255,0.08);border-color:var(--accent);color:var(--accent)}
+.g-fbtn.on.cr{background:rgba(255,51,85,0.08);border-color:var(--red);color:var(--red)}
+.g-fbtn.on.hi{background:rgba(255,170,0,0.08);border-color:var(--amber);color:var(--amber)}
+.g-news-list{flex:1;overflow-y:auto;padding:5px}
+.g-news-list::-webkit-scrollbar{width:3px}
+.g-news-list::-webkit-scrollbar-track{background:var(--bg1)}
+.g-news-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.g-news-item{padding:7px 9px;border:1px solid var(--border);border-radius:3px;margin-bottom:4px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
+.g-news-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--border2)}
+.g-news-item:hover{background:var(--bg2)}
+.g-news-item:hover::before{background:var(--accent)}
+.g-news-item.sel{border-color:var(--accent);background:rgba(0,212,255,0.04)}
+.g-news-item.sel::before{background:var(--accent)}
+.g-news-item.crit::before{background:var(--red)}
+.g-news-item.high::before{background:var(--amber)}
+.g-news-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;gap:4px}
+.g-news-src{font-family:var(--mono);font-size:0.55em;color:var(--text3);letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.g-sev{font-family:var(--mono);font-size:0.52em;padding:1px 4px;border-radius:1px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.sev-crit{background:rgba(255,51,85,0.15);color:var(--red);border:1px solid rgba(255,51,85,0.3)}
+.sev-high{background:rgba(255,170,0,0.15);color:var(--amber);border:1px solid rgba(255,170,0,0.3)}
+.sev-med{background:rgba(0,212,255,0.08);color:var(--accent);border:1px solid rgba(0,212,255,0.2)}
+.g-news-title{font-size:0.76em;color:var(--text);line-height:1.35}
+.g-news-link{font-family:var(--mono);font-size:0.54em;color:var(--text3);margin-top:3px;display:block;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color 0.12s}
+.g-news-link:hover{color:var(--accent)}
+.g-news-actions{padding:5px 6px;border-top:1px solid var(--border);display:flex;gap:4px;flex-shrink:0}
+.g-news-skeleton{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:3px;margin-bottom:4px}
+@keyframes shimmer{to{background-position:-200% 0}}
+.g-chat{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg0)}
+.g-quickbar{height:34px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;padding:0 10px;flex-shrink:0;overflow-x:auto}
+.g-quickbar::-webkit-scrollbar{height:0}
+.g-quick-label{font-family:var(--mono);font-size:0.6em;color:var(--text3);letter-spacing:2px;white-space:nowrap}
+.g-qbtn{font-family:var(--mono);font-size:0.62em;padding:3px 9px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:2px;cursor:pointer;white-space:nowrap;transition:all 0.12s}
+.g-qbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.05)}
+.g-qbtn.hot{border-color:rgba(255,51,85,0.5);color:var(--red)}
+.g-messages{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.g-messages::-webkit-scrollbar{width:3px}
+.g-messages::-webkit-scrollbar-track{background:var(--bg0)}
+.g-messages::-webkit-scrollbar-thumb{background:var(--border2)}
+.g-welcome{text-align:center;padding:24px 20px;color:var(--text3)}
+.g-welcome-icon{font-size:2em;margin-bottom:10px;display:block;animation:pulse2 3s ease-in-out infinite}
+@keyframes pulse2{0%,100%{transform:scale(1);opacity:0.8}50%{transform:scale(1.05);opacity:1}}
+.g-welcome h2{font-family:var(--display);font-size:1.3em;letter-spacing:4px;color:var(--text2);margin-bottom:8px}
+.g-welcome p{font-size:0.82em;line-height:1.7;color:var(--text3);margin-bottom:4px}
+.g-msg{display:flex;gap:10px;animation:msgIn 0.25s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.g-msg.user{flex-direction:row-reverse}
+.g-avatar{width:28px;height:28px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;align-self:flex-start;margin-top:2px}
+.g-avatar.ai{background:rgba(0,102,255,0.2);border:1px solid rgba(0,212,255,0.3);color:var(--accent);font-family:var(--display);font-size:0.85em;letter-spacing:1px}
+.g-avatar.user{background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);color:var(--green);font-family:var(--mono);font-size:0.62em}
+.g-msg-body{flex:1;min-width:0}
+.g-msg.user .g-msg-body{align-items:flex-end;display:flex;flex-direction:column}
+.g-msg-meta{font-family:var(--mono);font-size:0.58em;color:var(--text3);letter-spacing:1px;margin-bottom:4px}
+.g-bubble{padding:10px 14px;border-radius:3px;font-size:0.84em;line-height:1.65;max-width:100%;word-break:break-word}
+.g-msg.ai .g-bubble{background:var(--bg2);border:1px solid var(--border2);border-left:2px solid var(--accent);color:var(--text)}
+.g-msg.user .g-bubble{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.15);color:var(--text);text-align:right}
+.g-bubble h3{font-family:var(--condensed);font-size:0.95em;font-weight:700;color:var(--accent);letter-spacing:2px;margin:10px 0 5px;text-transform:uppercase}
+.g-bubble h3:first-child{margin-top:0}
+.g-bubble p{margin-bottom:8px}
+.g-bubble p:last-child{margin-bottom:0}
+.g-bubble strong{color:var(--accent);font-weight:600}
+.g-bubble em{color:var(--amber);font-style:normal;font-weight:600}
+.g-bubble ul{padding-left:16px;margin-bottom:8px}
+.g-bubble li{margin-bottom:4px;color:var(--text2)}
+.g-typing{display:flex;align-items:center;gap:4px;padding:8px 0}
+.g-tdot{width:5px;height:5px;background:var(--accent);border-radius:50%;animation:tdot 1.2s infinite}
+.g-tdot:nth-child(2){animation-delay:0.2s}
+.g-tdot:nth-child(3){animation-delay:0.4s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:0.3}30%{transform:translateY(-5px);opacity:1}}
+.g-input-section{padding:8px 10px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.g-input-row{display:flex;gap:8px;align-items:flex-end}
+.g-textarea{flex:1;background:var(--bg0);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:0.86em;padding:8px 12px;border-radius:3px;outline:none;resize:none;min-height:38px;max-height:100px;line-height:1.4;transition:border-color 0.15s}
+.g-textarea:focus{border-color:var(--accent)}
+.g-textarea::placeholder{color:var(--text3)}
+.g-ctx-bar{font-family:var(--mono);font-size:0.6em;color:var(--text3);padding:4px 0 0;letter-spacing:1px}
+.g-ctx-bar span{color:var(--accent)}
+.g-toast{position:fixed;bottom:16px;right:16px;background:var(--bg3);border:1px solid var(--border2);padding:10px 16px;border-radius:3px;font-family:var(--mono);font-size:0.74em;color:var(--text);z-index:9999;display:none;animation:toastIn 0.25s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="g-header">
+  <div class="g-logo">
+    <div class="g-logo-mark">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <circle cx="15" cy="15" r="13" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4 2" opacity="0.4"/>
+        <circle cx="15" cy="15" r="8" stroke="#0066ff" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.7"/>
+        <circle cx="15" cy="15" r="3" fill="#00d4ff" opacity="0.9"/>
+        <line x1="15" y1="2" x2="15" y2="8" stroke="#00d4ff" stroke-width="1.5" opacity="0.8"/>
+      </svg>
+    </div>
+    <div>
+      <div class="g-logo-text">GE<span>O</span>RG</div>
+      <div class="g-logo-sub">GEOPOLITICAL EVENT OBSERVER & RESPONSE GENERATOR · v2.0</div>
+    </div>
+  </div>
+  <div class="g-header-center">
+    <div class="g-pill"><div class="g-dot" id="aiDot"></div><span id="aiStatus">OFFLINE</span></div>
+    <div class="g-pill"><div class="g-dot" id="newsDot"></div><span id="newsStatus">NEWS: —</span></div>
+    <div class="g-pill" id="ctxPill" style="display:none"><span id="ctxCount">0 in context</span></div>
+  </div>
+  <div class="g-header-right">
+    <button class="g-btn g-btn-ghost" onclick="clearChat()" style="font-size:0.7em;">CLEAR CHAT</button>
+  </div>
+</div>
+
+<div class="g-apibar">
+  <span class="g-api-label">GROQ KEY ▸</span>
+  <input type="password" class="g-api-input" id="apiInput" placeholder="gsk_... paste your Groq API key"/>
+  <button class="g-btn g-btn-primary" onclick="connectKey()">CONNECT</button>
+  <button class="g-btn g-btn-ghost" onclick="clearKey()" style="font-size:0.72em;">CLEAR</button>
+  <span style="font-family:var(--mono);font-size:0.6em;color:var(--text3);margin-left:8px;" id="keyHint">Free key at console.groq.com</span>
+</div>
+
+<div class="g-layout">
+  <div class="g-map-section">
+    <div class="g-map-bar">
+      <span class="g-map-title">⬡ GLOBAL INTELLIGENCE MAP — MARCH 2026</span>
+      <div class="g-map-layers">
+        <button class="g-layer-btn active" id="layerConflict" onclick="toggleLayer('conflict')">CONFLICTS</button>
+        <button class="g-layer-btn active" id="layerBases" onclick="toggleLayer('bases')">BASES (150+)</button>
+        <button class="g-layer-btn active" id="layerRisk" onclick="toggleLayer('risk')">RISK HEAT</button>
+        <button class="g-layer-btn" id="layerNews" onclick="toggleLayer('news')">NEWS PINS</button>
+      </div>
+    </div>
+    <div id="georg-map"></div>
+    <div class="g-legend">
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ff0033"></div>Active War / Strikes</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ff6600"></div>High Intensity</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ffaa00"></div>High Tension</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#0066ff;border-radius:2px"></div>US Base</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ff3355;border-radius:2px"></div>Russia/Wagner</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#ffcc00;border-radius:2px"></div>China</div>
+      <div class="g-legend-item"><div class="g-legend-dot" style="background:#4488ff;border-radius:2px"></div>UK/France/Other</div>
+    </div>
+  </div>
+
+  <div class="g-bottom">
+    <div class="g-news">
+      <div class="g-panel-hdr">
+        <span class="g-panel-hdr-title">⚡ LIVE INTEL</span>
+        <span class="g-panel-hdr-count" id="newsCount">—</span>
+      </div>
+      <div class="g-news-filter">
+        <button class="g-fbtn on" id="fa" onclick="setFilter('all')">ALL</button>
+        <button class="g-fbtn on cr" id="fc" onclick="setFilter('crit')" style="display:none">CRIT</button>
+        <button class="g-fbtn" id="fh" onclick="setFilter('high')">HIGH</button>
+        <button class="g-fbtn" id="fm" onclick="setFilter('med')">MED</button>
+        <button class="g-fbtn" id="fR" onclick="setFilter('Reuters')">Reuters</button>
+        <button class="g-fbtn" id="fB" onclick="setFilter('BBC')">BBC</button>
+        <button class="g-fbtn" id="fA" onclick="setFilter('Al Jazeera')">AJ</button>
+        <button class="g-fbtn" id="fD" onclick="setFilter('Defense')">Defense</button>
+        <button class="g-fbtn" id="fN" onclick="setFilter('NYT')">NYT</button>
+        <button class="g-fbtn" id="fG" onclick="setFilter('Guardian')">Guardian</button>
+        <button class="g-fbtn" id="fF" onclick="setFilter('Foreign')">FP</button>
+      </div>
+      <div class="g-news-list" id="newsList">
+        <div style="padding:20px 10px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:0.7em;line-height:2;">Connect API key<br>then refresh intel feed</div>
+      </div>
+      <div class="g-news-actions">
+        <button class="g-btn g-btn-ghost" style="flex:1;font-size:0.64em;" onclick="fetchNews()">↺ REFRESH</button>
+        <button class="g-btn g-btn-ghost" style="flex:1;font-size:0.64em;" onclick="selAll()">⚡ ALL</button>
+        <button class="g-btn g-btn-ghost" style="flex:1;font-size:0.64em;" onclick="deselAll()">✕ CLEAR</button>
+      </div>
+    </div>
+
+    <div class="g-chat">
+      <div class="g-quickbar">
+        <span class="g-quick-label">QUICK ▸</span>
+        <button class="g-qbtn hot" onclick="qp('iran')">🔥 Iran War NOW</button>
+        <button class="g-qbtn" onclick="qp('predict')">🎯 Escalations</button>
+        <button class="g-qbtn" onclick="qp('consequences')">⚡ Consequences</button>
+        <button class="g-qbtn" onclick="qp('scenarios')">🔀 Scenarios</button>
+        <button class="g-qbtn" onclick="qp('hotspots')">🌍 Hotspots</button>
+        <button class="g-qbtn" onclick="qp('brief')">📋 Intel Brief</button>
+        <button class="g-qbtn" onclick="qp('hormuz')">🚢 Hormuz</button>
+        <button class="g-qbtn" onclick="qp('energy')">⛽ Energy</button>
+        <button class="g-qbtn" onclick="qp('nuclear')">☢ Nuclear</button>
+        <button class="g-qbtn" onclick="qp('russia')">🐻 Russia Angle</button>
+        <button class="g-qbtn" onclick="qp('china')">🐉 China/Taiwan</button>
+      </div>
+      <div class="g-messages" id="messages">
+        <div class="g-welcome" id="welcomeMsg">
+          <span class="g-welcome-icon">🛰</span>
+          <h2>GEORG v2.0 — MARCH 2026</h2>
+          <p>Updated for the Iran war. 150+ military bases. 16 news sources.</p>
+          <p style="margin-top:8px;font-size:0.75em;">→ Paste Groq key &amp; CONNECT → ↺ REFRESH for live news<br>→ Click articles to add context → Quick prompts or ask anything</p>
+        </div>
+      </div>
+      <div class="g-input-section">
+        <div class="g-input-row">
+          <textarea class="g-textarea" id="chatInput" placeholder="Ask GEORG... e.g. 'What happens if Iran closes the Strait of Hormuz?'" rows="1"></textarea>
+          <button class="g-btn g-btn-primary" id="sendBtn" onclick="send()" disabled>SEND</button>
+        </div>
+        <div class="g-ctx-bar">CONTEXT: <span id="ctxInfo">no articles selected</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="g-toast" id="toast"></div>
+
+<script>
+let apiKey = localStorage.getItem('georg_key')||'';
+let news=[], history=[], loading=false;
+let map, conflictLayer, basesLayer, riskLayer, newsLayer;
+let layers={conflict:true,bases:true,risk:true,news:false};
+let newsFilter='all';
+
+// ── CONFLICT ZONES (updated March 2026) ──────────────────
+const CONFLICTS=[
+  {lat:32.0,lon:53.0,name:'Iran — Operation Epic Fury',type:'war',risk:99,desc:'US-Israeli joint war began Feb 28 2026. Khamenei killed. Iran retaliating with missiles/drones across all of Middle East. 2000+ dead. Ongoing.'},
+  {lat:35.7,lon:51.4,name:'Tehran — Strike Zone',type:'war',risk:98,desc:'Most heavily struck city. Military, nuclear, leadership sites targeted. Hundreds of strikes in first 3 weeks.'},
+  {lat:32.4,lon:53.7,name:'Natanz Nuclear Site',type:'war',risk:97,desc:'Primary enrichment site. Struck in June 2025 and February 2026. Stockpile status unknown. IAEA access lost.'},
+  {lat:33.7,lon:48.4,name:'Fordow Underground Facility',type:'war',risk:96,desc:'Deep underground enrichment. US B-2 bunker-busters used. Damage assessment uncertain.'},
+  {lat:29.5,lon:35.0,name:'Strait of Hormuz Theater',type:'war',risk:95,desc:'Critical chokepoint — 20% of global oil. Iranian closure threat. US/allied carrier groups deployed. Oil at $180+/barrel.'},
+  {lat:33.9,lon:35.5,name:'Lebanon — Hezbollah Front',type:'war',risk:85,desc:'Hezbollah re-entered conflict Feb 28 in solidarity with Iran. IDF strikes southern Lebanon. Lebanese govt opposing Hezbollah.'},
+  {lat:26.1,lon:50.6,name:'Bahrain — NSA Struck',type:'war',risk:88,desc:'US 5th Fleet HQ struck by Iranian ballistic missiles. UK bases also hit. First GCC attack since Tanker War.'},
+  {lat:25.1,lon:51.3,name:'Qatar — Al Udeid Struck',type:'war',risk:85,desc:'Largest US air base in Middle East struck. CENTCOM HQ. F-35s evacuated. Operations disrupted.'},
+  {lat:32.6,lon:36.5,name:'Jordan — Al-Tanf Struck',type:'war',risk:80,desc:'US garrison hit by Iranian missiles. Special forces base on Syria-Jordan border.'},
+  {lat:48.0,lon:37.5,name:'Eastern Ukraine',type:'war',risk:90,desc:'Russia launching major offensive as NATO attention diverts to Iran. Kharkiv front under pressure. Western support stretched.'},
+  {lat:15.5,lon:32.5,name:'Sudan',type:'war',risk:85,desc:'SAF vs RSF civil war. 10M+ displaced. Famine conditions in Darfur. No ceasefire in sight.'},
+  {lat:31.5,lon:34.8,name:'Gaza Strip',type:'active',risk:75,desc:'Israel-Hamas ceasefire Oct 2025. Fragile. Hamas severely degraded. Risk of collapse as Iran war escalates.'},
+  {lat:35.0,lon:38.5,name:'Syria — Post-Assad',type:'active',risk:68,desc:'Transition under Ahmed al-Sharaa. Iranian influence eliminated. Turkish, US, Kurdish forces present.'},
+  {lat:15.3,lon:44.2,name:'Yemen — Houthis',type:'active',risk:78,desc:'Red Sea ceasefire since Oct 2025. Houthi leaders signaling resumption in support of Iran. Bracing for Israeli strikes.'},
+  {lat:23.5,lon:121.0,name:'Taiwan Strait',type:'tension',risk:74,desc:'PLA exercises intensified. US focused on Iran. Risk of opportunistic escalation. Most dangerous window since 1996.'},
+  {lat:35.0,lon:129.0,name:'Korean Peninsula',type:'tension',risk:68,desc:'DPRK tested ICBM while US distracted by Iran. Kim Jong-un watching. Nuclear program accelerating.'},
+  {lat:12.0,lon:15.0,name:'Sahel Region',type:'tension',risk:74,desc:'Wagner/Africa Corps active across Mali, Burkina, Niger, CAR. French expelled. Jihadist consolidation.'},
+  {lat:-3.0,lon:29.0,name:'Eastern DRC',type:'active',risk:72,desc:'M23/Rwanda advance. MONUSCO withdrawal. Mining regions contested. 6M+ displaced.'},
+  {lat:19.0,lon:97.0,name:'Myanmar',type:'active',risk:76,desc:'Military junta losing ground rapidly. Multiple ethnic armed groups advancing. Civil war accelerating 2025-26.'},
+  {lat:19.0,lon:-73.0,name:'Haiti',type:'active',risk:80,desc:'Gang control 80%+ of Port-au-Prince. Kenyan MSS struggling. State effectively collapsed.'},
+  {lat:9.0,lon:40.0,name:'Ethiopia',type:'active',risk:62,desc:'Tigray ceasefire holding but fragile. Amhara and Oromia conflicts ongoing. Horn instability.'},
+  {lat:60.0,lon:24.0,name:'Baltic Region',type:'tension',risk:62,desc:'NATO reinforced. Russian hybrid threats ongoing. Sweden/Finland integrated. Russia stretched in Ukraine.'},
+  {lat:27.5,lon:89.5,name:'India-China Border',type:'tension',risk:55,desc:'LAC partial disengagement 2024 but military buildup continues. India watching Iran situation closely.'},
+];
+
+// ── MILITARY BASES (150+) ──────────────────────────────
+const BASES=[
+  // USA MIDDLE EAST
+  {lat:26.1,lon:50.6,n:'NSA Bahrain / 5th Fleet',c:'USA',f:'🇺🇸',note:'STRUCK FEB 28'},
+  {lat:25.1,lon:51.3,n:'Al Udeid AB (Qatar)',c:'USA',f:'🇺🇸',note:'STRUCK FEB 28'},
+  {lat:25.1,lon:55.4,n:'Al Dhafra AB (UAE)',c:'USA',f:'🇺🇸',note:'Iranian drone threat'},
+  {lat:29.6,lon:47.8,n:'Ali Al Salem AB (Kuwait)',c:'USA',f:'🇺🇸'},
+  {lat:29.2,lon:47.5,n:'Camp Arifjan (Kuwait)',c:'USA',f:'🇺🇸'},
+  {lat:30.1,lon:38.5,n:'Prince Sultan AB (Saudi Arabia)',c:'USA',f:'🇺🇸',note:'Iranian missile range'},
+  {lat:24.5,lon:46.7,n:'Riyadh Military Advisory',c:'USA',f:'🇺🇸'},
+  {lat:32.6,lon:36.5,n:'Al-Tanf Garrison (Syria/Jordan)',c:'USA',f:'🇺🇸',note:'STRUCK FEB 28'},
+  {lat:36.5,lon:36.1,n:'Incirlik AB (Turkey)',c:'USA/NATO',f:'🇺🇸'},
+  {lat:35.1,lon:33.3,n:'Akrotiri (Cyprus)',c:'UK',f:'🇬🇧',note:'Iranian missile threat'},
+  {lat:35.0,lon:33.7,n:'Dhekelia (Cyprus)',c:'UK',f:'🇬🇧'},
+  {lat:31.8,lon:35.0,n:'Nevatim AB (Israel)',c:'IDF',f:'🇮🇱'},
+  {lat:31.1,lon:34.8,n:'Hatzerim AB (Israel)',c:'IDF',f:'🇮🇱'},
+  {lat:32.2,lon:34.9,n:'Tel Nof AB (Israel)',c:'IDF',f:'🇮🇱'},
+  {lat:29.5,lon:34.9,n:'Eilat Naval (Israel)',c:'IDF',f:'🇮🇱'},
+  // USA AFRICA
+  {lat:11.5,lon:43.1,n:'Camp Lemonnier (Djibouti)',c:'USA',f:'🇺🇸'},
+  {lat:12.1,lon:43.2,n:'Chabelley Airfield (Djibouti)',c:'USA',f:'🇺🇸'},
+  {lat:14.3,lon:-16.8,n:'Dakar (Senegal)',c:'USA',f:'🇺🇸'},
+  {lat:5.6,lon:-0.2,n:'Accra (Ghana) logistics',c:'USA',f:'🇺🇸'},
+  {lat:9.0,lon:38.8,n:'Bishoftu AB (Ethiopia)',c:'USA',f:'🇺🇸'},
+  {lat:-4.3,lon:15.3,n:'Kinshasa advisory (DRC)',c:'USA',f:'🇺🇸'},
+  {lat:13.5,lon:2.1,n:'Agadez (Niger) — status uncertain',c:'USA',f:'🇺🇸',note:'Post-coup status unclear'},
+  // USA EUROPE
+  {lat:48.4,lon:14.5,n:'NATO HQ Brussels',c:'NATO',f:'🌐'},
+  {lat:43.9,lon:12.5,n:'Aviano AB (Italy)',c:'USA',f:'🇺🇸'},
+  {lat:40.7,lon:15.7,n:'Sigonella NAS (Italy)',c:'USA/NATO',f:'🇺🇸'},
+  {lat:36.8,lon:-5.6,n:'Rota Naval (Spain)',c:'USA',f:'🇺🇸'},
+  {lat:38.9,lon:-6.9,n:'Morón AB (Spain)',c:'USA',f:'🇺🇸'},
+  {lat:50.0,lon:8.6,n:'Ramstein AB (Germany)',c:'USA',f:'🇺🇸'},
+  {lat:48.7,lon:9.2,n:'Stuttgart EUCOM (Germany)',c:'USA',f:'🇺🇸'},
+  {lat:50.9,lon:6.4,n:'Spangdahlem AB (Germany)',c:'USA',f:'🇺🇸'},
+  {lat:49.4,lon:8.7,n:'Heidelberg (Germany)',c:'USA/NATO',f:'🇺🇸'},
+  {lat:52.4,lon:13.5,n:'Berlin NATO HQ',c:'NATO',f:'🌐'},
+  {lat:52.1,lon:4.3,n:'Volkel AB (Netherlands)',c:'NATO',f:'🌐'},
+  {lat:50.5,lon:5.4,n:'Kleine Brogel (Belgium)',c:'NATO',f:'🌐'},
+  {lat:52.2,lon:21.0,n:'Warsaw NATO HQ (Poland)',c:'NATO',f:'🌐'},
+  {lat:54.7,lon:18.5,n:'Gdynia Naval (Poland)',c:'Poland',f:'🇵🇱'},
+  {lat:54.6,lon:24.1,n:'Rukla (Lithuania)',c:'NATO',f:'🌐'},
+  {lat:57.4,lon:25.0,n:'Adazi (Latvia)',c:'NATO',f:'🌐'},
+  {lat:59.4,lon:24.7,n:'Amari AB (Estonia)',c:'NATO',f:'🌐'},
+  {lat:65.6,lon:25.4,n:'Oulu AB (Finland)',c:'Finland/NATO',f:'🇫🇮'},
+  {lat:60.3,lon:25.0,n:'Utti AB (Finland)',c:'Finland/NATO',f:'🇫🇮'},
+  {lat:59.3,lon:18.1,n:'Berga Naval (Sweden)',c:'Sweden/NATO',f:'🇸🇪'},
+  {lat:55.7,lon:13.5,n:'Malmö (Sweden) NATO',c:'NATO',f:'🌐'},
+  {lat:55.7,lon:12.6,n:'Karup AB (Denmark)',c:'Denmark',f:'🇩🇰'},
+  {lat:37.0,lon:22.5,n:'Souda Bay (Greece)',c:'USA/NATO',f:'🇺🇸'},
+  {lat:41.9,lon:12.5,n:'Pratica di Mare (Italy)',c:'Italy',f:'🇮🇹'},
+  {lat:40.4,lon:-3.7,n:'Torrejón AB (Spain)',c:'Spain',f:'🇪🇸'},
+  {lat:51.5,lon:-0.1,n:'Northwood HQ (UK)',c:'UK',f:'🇬🇧'},
+  {lat:51.9,lon:-1.5,n:'RAF Brize Norton (UK)',c:'UK',f:'🇬🇧'},
+  {lat:57.5,lon:-4.0,n:'RAF Lossiemouth (UK)',c:'UK',f:'🇬🇧'},
+  {lat:51.6,lon:-1.8,n:'RAF Fairford (UK)',c:'UK',f:'🇬🇧'},
+  // USA ASIA-PACIFIC
+  {lat:35.7,lon:139.8,n:'Camp Zama (Japan)',c:'USA',f:'🇺🇸'},
+  {lat:35.4,lon:139.4,n:'Yokosuka Naval (Japan)',c:'USA',f:'🇺🇸'},
+  {lat:34.1,lon:131.1,n:'Iwakuni MCAS (Japan)',c:'USA',f:'🇺🇸'},
+  {lat:26.4,lon:127.8,n:'Kadena AB (Okinawa)',c:'USA',f:'🇺🇸'},
+  {lat:26.2,lon:127.7,n:'Camp Foster (Okinawa)',c:'USA',f:'🇺🇸'},
+  {lat:37.5,lon:127.0,n:'USFK HQ Seoul (S Korea)',c:'USA',f:'🇺🇸'},
+  {lat:36.7,lon:127.0,n:'Osan AB (S Korea)',c:'USA',f:'🇺🇸'},
+  {lat:36.0,lon:127.0,n:'Camp Humphreys (S Korea)',c:'USA',f:'🇺🇸'},
+  {lat:14.6,lon:121.0,n:'Clark AB (Philippines)',c:'USA',f:'🇺🇸'},
+  {lat:14.3,lon:120.5,n:'Subic Bay (Philippines)',c:'USA',f:'🇺🇸'},
+  {lat:7.1,lon:125.6,n:'Zamboanga (Philippines)',c:'USA',f:'🇺🇸'},
+  {lat:13.5,lon:144.9,n:'Andersen AFB (Guam)',c:'USA',f:'🇺🇸'},
+  {lat:13.3,lon:144.7,n:'Apra Harbor (Guam)',c:'USA',f:'🇺🇸'},
+  {lat:-34.9,lon:138.6,n:'RAAF Edinburgh (Australia)',c:'Australia',f:'🇦🇺'},
+  {lat:-31.7,lon:115.8,n:'HMAS Stirling (Australia)',c:'Australia',f:'🇦🇺'},
+  {lat:-12.4,lon:130.9,n:'Darwin (Australia/USA)',c:'USA/AUS',f:'🇺🇸'},
+  {lat:1.3,lon:103.8,n:'Sembawang (Singapore)',c:'USA',f:'🇺🇸'},
+  // USA AMERICAS
+  {lat:19.9,lon:-75.2,n:'Guantánamo Bay (Cuba)',c:'USA',f:'🇺🇸'},
+  {lat:9.0,lon:-79.6,n:'Rodman Naval (Panama)',c:'USA',f:'🇺🇸'},
+  {lat:12.1,lon:-68.9,n:'Willemstad (Curaçao)',c:'Netherlands/USA',f:'🇺🇸'},
+  {lat:-54.3,lon:-36.5,n:'Mount Pleasant (Falklands)',c:'UK',f:'🇬🇧'},
+  // RUSSIA
+  {lat:55.8,lon:37.6,n:'Moscow Military District',c:'Russia',f:'🇷🇺'},
+  {lat:59.9,lon:30.3,n:'St Petersburg Western MD',c:'Russia',f:'🇷🇺'},
+  {lat:44.7,lon:33.4,n:'Sevastopol Black Sea Fleet',c:'Russia',f:'🇷🇺'},
+  {lat:45.0,lon:38.0,n:'Novorossiysk Naval',c:'Russia',f:'🇷🇺'},
+  {lat:34.6,lon:36.5,n:'Khmeimim AB (Syria)',c:'Russia',f:'🇷🇺'},
+  {lat:34.8,lon:35.9,n:'Tartus Naval (Syria)',c:'Russia',f:'🇷🇺'},
+  {lat:27.5,lon:41.7,n:'Jufra AB (Libya)',c:'Russia',f:'🇷🇺'},
+  {lat:32.1,lon:20.1,n:'Benghazi (Libya)',c:'Russia',f:'🇷🇺'},
+  {lat:13.5,lon:2.1,n:'Gao (Mali) Wagner/Africa Corps',c:'Wagner',f:'⚔️'},
+  {lat:17.5,lon:-4.0,n:'Timbuktu (Mali) Wagner',c:'Wagner',f:'⚔️'},
+  {lat:4.4,lon:18.6,n:'Bangui (CAR) Wagner',c:'Wagner',f:'⚔️'},
+  {lat:12.6,lon:8.0,n:'Niamey (Niger)',c:'Russia',f:'🇷🇺',note:'US expelled, Russia present'},
+  {lat:12.4,lon:-1.5,n:'Ouagadougou (Burkina Faso)',c:'Wagner',f:'⚔️'},
+  {lat:10.6,lon:-13.6,n:'Conakry (Guinea)',c:'Russia',f:'🇷🇺'},
+  {lat:15.5,lon:32.5,n:'Meroe Port (Sudan)',c:'Russia',f:'🇷🇺',note:'Naval base deal'},
+  // CHINA
+  {lat:39.9,lon:116.4,n:'Beijing PLA HQ',c:'China',f:'🇨🇳'},
+  {lat:30.6,lon:114.3,n:'Wuhan PLA Central Theater',c:'China',f:'🇨🇳'},
+  {lat:23.1,lon:113.3,n:'Guangzhou Southern Theater',c:'China',f:'🇨🇳'},
+  {lat:36.1,lon:120.4,n:'Qingdao North Sea Fleet',c:'China',f:'🇨🇳'},
+  {lat:22.3,lon:114.2,n:'Hong Kong Garrison',c:'China',f:'🇨🇳'},
+  {lat:11.6,lon:43.2,n:'China Naval Base (Djibouti)',c:'China',f:'🇨🇳'},
+  {lat:25.0,lon:67.0,n:'Gwadar Port (Pakistan)',c:'China',f:'🇨🇳'},
+  {lat:8.9,lon:76.6,n:'Hambantota (Sri Lanka)',c:'China',f:'🇨🇳'},
+  {lat:16.5,lon:112.3,n:'South China Sea Islands',c:'China',f:'🇨🇳'},
+  {lat:10.9,lon:115.8,n:'Fiery Cross Reef',c:'China',f:'🇨🇳'},
+  {lat:-1.3,lon:36.8,n:'Nairobi logistics (Kenya)',c:'China',f:'🇨🇳'},
+  // IRAN (struck)
+  {lat:35.7,lon:51.4,n:'Tehran IRGC HQ — STRUCK',c:'Iran',f:'🇮🇷',note:'US-Israeli strikes Feb 28 2026'},
+  {lat:32.4,lon:53.7,n:'Natanz Nuclear — STRUCK',c:'Iran',f:'🇮🇷',note:'Struck 2025 & 2026'},
+  {lat:33.7,lon:48.4,n:'Fordow Underground — STRUCK',c:'Iran',f:'🇮🇷',note:'B-2 bunker-busters used'},
+  {lat:29.6,lon:52.5,n:'Shiraz AB (Iran)',c:'Iran',f:'🇮🇷'},
+  {lat:35.2,lon:59.2,n:'Mashhad Shahid Base (Iran)',c:'Iran',f:'🇮🇷'},
+  // FRANCE
+  {lat:11.5,lon:43.1,n:'Djibouti (France)',c:'France',f:'🇫🇷'},
+  {lat:17.6,lon:-16.0,n:'Dakar (Senegal)',c:'France',f:'🇫🇷'},
+  {lat:4.0,lon:9.7,n:'Douala (Cameroon)',c:'France',f:'🇫🇷'},
+  {lat:48.8,lon:2.3,n:'Villacoublay (France)',c:'France',f:'🇫🇷'},
+  {lat:43.6,lon:1.4,n:'Toulouse Space (France)',c:'France',f:'🇫🇷'},
+  {lat:-20.9,lon:55.5,n:'Réunion Island (France)',c:'France',f:'🇫🇷'},
+];
+
+const RISK=[
+  {lat:32.0,lon:53.0,r:99},{lat:35.7,lon:51.4,r:98},{lat:29.5,lon:35.0,r:95},
+  {lat:26.1,lon:50.6,r:90},{lat:49.0,lon:32.0,r:90},{lat:31.5,lon:34.5,r:88},
+  {lat:33.9,lon:35.5,r:85},{lat:15.5,lon:32.5,r:85},{lat:15.0,lon:44.0,r:78},
+  {lat:19.0,lon:-73.0,r:80},{lat:25.1,lon:51.3,r:82},{lat:23.5,lon:121.0,r:74},
+  {lat:19.0,lon:97.0,r:76},{lat:17.0,lon:-2.0,r:74},{lat:12.0,lon:-2.0,r:73},
+  {lat:-3.0,lon:24.0,r:72},{lat:27.0,lon:17.0,r:70},{lat:40.0,lon:127.0,r:70},
+  {lat:35.0,lon:38.0,r:68},{lat:9.0,lon:40.0,r:62},{lat:8.0,lon:-66.0,r:60},
+];
+
+// ── MAP ───────────────────────────────────────────────────
+function initMap(){
+  map=L.map('georg-map',{center:[25,25],zoom:2,zoomControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+  conflictLayer=L.layerGroup().addTo(map);
+  basesLayer=L.layerGroup().addTo(map);
+  riskLayer=L.layerGroup().addTo(map);
+  newsLayer=L.layerGroup();
+  renderConflicts();renderBases();renderRisk();
+}
+
+function rc(r){
+  if(r>=95)return'#ff0033';if(r>=85)return'#ff3355';if(r>=70)return'#ff6600';
+  if(r>=60)return'#ffaa00';return'#ffcc44';
+}
+
+function renderConflicts(){
+  if(!conflictLayer)return;
+  conflictLayer.clearLayers();
+  if(!layers.conflict)return;
+  CONFLICTS.forEach(z=>{
+    const c=z.type==='war'?rc(z.risk):z.type==='active'?'#ff6600':'#ffaa00';
+    const r=z.type==='war'?20:z.type==='active'?15:12;
+    const pop=`<div class="g-popup-title" style="color:${c}">${z.name}</div><div class="g-popup-desc">${z.desc}</div><div class="g-popup-risk" style="color:${c}">THREAT: ${z.risk}/100 · ${z.type.toUpperCase()}</div><div class="g-popup-btn" onclick="askAbout('${z.name.replace(/'/g,"\\'")}')">ASK GEORG</div>`;
+    [L.circleMarker([z.lat,z.lon],{radius:r,fillColor:c,fillOpacity:z.type==='war'?0.2:0.12,color:c,weight:z.type==='war'?2:1,opacity:0.8,dashArray:z.type==='war'?null:'4 3'}),
+     L.circleMarker([z.lat,z.lon],{radius:z.type==='war'?6:4,fillColor:c,fillOpacity:0.95,color:'#fff',weight:1,opacity:0.4})
+    ].forEach(m=>{m.bindPopup(pop,{maxWidth:280});conflictLayer.addLayer(m);});
+  });
+}
+
+function bc(c){
+  if(c.includes('USA'))return'#0066ff';
+  if(c.includes('Russia')||c==='Wagner')return'#ff3355';
+  if(c==='China')return'#ffcc00';
+  if(c==='UK')return'#4488ff';
+  if(c==='France')return'#0055cc';
+  if(c==='Iran')return'#cc4400';
+  if(c==='IDF')return'#0088cc';
+  return'#558899';
+}
+
+function renderBases(){
+  if(!basesLayer)return;
+  basesLayer.clearLayers();
+  if(!layers.bases)return;
+  BASES.forEach(b=>{
+    const col=bc(b.c);
+    const struck=b.note&&b.note.includes('STRUCK');
+    const icon=L.divIcon({
+      html:`<div style="width:${struck?12:8}px;height:${struck?12:8}px;background:${col};border:1px solid rgba(255,255,255,0.35);transform:rotate(45deg);box-shadow:0 0 ${struck?10:4}px ${col}${struck?',0 0 16px rgba(255,0,0,0.5)':'55'};"></div>`,
+      className:'',iconSize:[12,12],iconAnchor:[6,6]
+    });
+    const m=L.marker([b.lat,b.lon],{icon});
+    m.bindPopup(`<div class="g-popup-title">${b.f} ${b.n}</div><div class="g-popup-desc">${b.c}${b.note?'<br><span style="color:var(--red)">⚠ '+b.note+'</span>':''}</div><div class="g-popup-btn" onclick="askAbout('${b.n.replace(/'/g,"\\'")}')">ASK GEORG</div>`,{maxWidth:240});
+    basesLayer.addLayer(m);
+  });
+}
+
+function renderRisk(){
+  if(!riskLayer)return;
+  riskLayer.clearLayers();
+  if(!layers.risk)return;
+  RISK.forEach(c=>{
+    riskLayer.addLayer(L.circleMarker([c.lat,c.lon],{radius:10+(c.r/100)*30,fillColor:rc(c.r),fillOpacity:0.07,color:rc(c.r),weight:0.5,opacity:0.15}));
+  });
+}
+
+function renderNewsOnMap(items){
+  newsLayer.clearLayers();
+  if(!layers.news)return;
+  const GEO={'iran':[32,53],'tehran':[35.7,51.4],'israel':[31.7,35.2],'gaza':[31.5,34.5],'ukraine':[49,32],'russia':[55.8,37.6],'china':[35,105],'taiwan':[23.5,121],'korea':[37.5,127],'syria':[35,38],'yemen':[15,47],'sudan':[15,30],'iraq':[33,44],'pakistan':[30,69],'myanmar':[19,97],'mali':[17,-2],'nato':[48,14],'lebanon':[33.9,35.5],'hezbollah':[33.9,35.5],'hamas':[31.5,34.5],'hormuz':[26.5,56.5],'bahrain':[26.1,50.6],'qatar':[25.3,51.5],'saudi':[24,45],'uae':[24.5,54],'jordan':[31.9,35.9],'gulf':[27,51],'red sea':[18,40],'khamenei':[35.7,51.4],'africa':[0,20],'europe':[50,10]};
+  items.filter(n=>n.selected).forEach(n=>{
+    const t=n.title.toLowerCase();let coords=null;
+    for(const[k,p]of Object.entries(GEO)){if(t.includes(k)){coords=p;break;}}
+    if(!coords)return;
+    const j=[(Math.random()-0.5)*2,(Math.random()-0.5)*2];
+    const icon=L.divIcon({html:`<div style="background:#00d4ff;color:#000;font-size:7px;font-family:monospace;padding:2px 4px;border-radius:2px;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px rgba(0,0,0,0.5);">${n.source}</div>`,className:'',iconAnchor:[0,0]});
+    const mk=L.marker([coords[0]+j[0],coords[1]+j[1]],{icon});
+    mk.bindPopup(`<div class="g-popup-title">${n.source}</div><div class="g-popup-desc">${n.title}</div>${n.link?`<a href="${n.link}" target="_blank" style="display:block;margin-top:6px;font-family:var(--mono);font-size:0.7em;color:var(--accent);">↗ Open article</a>`:''}<div class="g-popup-btn" onclick="askAboutNews('${n.title.replace(/'/g,"\\'")}')">ASK GEORG</div>`,{maxWidth:280});
+    newsLayer.addLayer(mk);
+  });
+}
+
+function toggleLayer(name){
+  layers[name]=!layers[name];
+  document.getElementById('layer'+name.charAt(0).toUpperCase()+name.slice(1)).classList.toggle('active',layers[name]);
+  if(name==='conflict')renderConflicts();
+  else if(name==='bases')renderBases();
+  else if(name==='risk')renderRisk();
+  else if(name==='news'){if(layers.news){map.addLayer(newsLayer);renderNewsOnMap(news);}else map.removeLayer(newsLayer);}
+}
+
+function askAbout(loc){
+  document.querySelectorAll('.leaflet-popup-close-button').forEach(b=>b.click());
+  document.getElementById('chatInput').value=`Analyze the current situation at ${loc} as of March 2026. What are the key developments, actors involved, risks, and most likely scenario in the next 30 days?`;
+  send();
+}
+function askAboutNews(title){
+  document.querySelectorAll('.leaflet-popup-close-button').forEach(b=>b.click());
+  document.getElementById('chatInput').value=`Analyze: "${title}". Geopolitical implications and likely consequences?`;
+  send();
+}
+
+// ── KEY ───────────────────────────────────────────────────
+function connectKey(){
+  const val=document.getElementById('apiInput').value.trim().replace(/[\u200B-\u200D\uFEFF\u00A0]/g,'');
+  if(!val.startsWith('gsk_')){toast('⚠ Key must start with gsk_','warn');return;}
+  apiKey=val;localStorage.setItem('georg_key',apiKey);
+  setStatus('online');document.getElementById('sendBtn').disabled=false;
+  document.getElementById('keyHint').textContent='● CONNECTED';
+  document.getElementById('keyHint').style.color='var(--green)';
+  fetchNews();toast('✓ Connected — fetching intel...','ok');
+}
+function clearKey(){
+  apiKey='';localStorage.removeItem('georg_key');
+  document.getElementById('apiInput').value='';
+  document.getElementById('keyHint').textContent='Free key at console.groq.com';
+  document.getElementById('keyHint').style.color='';
+  document.getElementById('sendBtn').disabled=true;
+  document.getElementById('aiDot').className='g-dot err';
+  document.getElementById('aiStatus').textContent='OFFLINE';
+  toast('Key cleared','warn');
+}
+function setStatus(s){
+  const d=document.getElementById('aiDot'),t=document.getElementById('aiStatus');
+  if(s==='online'){d.className='g-dot live';t.textContent='ONLINE';}
+  else if(s==='thinking'){d.className='g-dot fetch';t.textContent='THINKING';}
+  else{d.className='g-dot err';t.textContent='ERROR';}
+}
+
+// ── NEWS ──────────────────────────────────────────────────
+const FEEDS=[
+  {url:'https://feeds.reuters.com/reuters/worldNews',src:'Reuters'},
+  {url:'https://feeds.reuters.com/reuters/topNews',src:'Reuters'},
+  {url:'https://rss.cnn.com/rss/edition_world.rss',src:'CNN'},
+  {url:'https://rss.cnn.com/rss/edition_middleeast.rss',src:'CNN'},
+  {url:'https://www.aljazeera.com/xml/rss/all.xml',src:'Al Jazeera'},
+  {url:'https://feeds.bbci.co.uk/news/world/rss.xml',src:'BBC'},
+  {url:'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml',src:'BBC'},
+  {url:'https://www.defensenews.com/arc/outboundfeeds/rss/',src:'Defense News'},
+  {url:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',src:'NYT'},
+  {url:'https://foreignpolicy.com/feed/',src:'Foreign Policy'},
+  {url:'https://www.theguardian.com/world/rss',src:'Guardian'},
+  {url:'https://feeds.washingtonpost.com/rss/world',src:'WashPost'},
+  {url:'https://www.middleeasteye.net/rss',src:'Middle East Eye'},
+  {url:'https://acleddata.com/feed/',src:'ACLED'},
+];
+
+const CK=['killed','war','strike','attack','missile','nuclear','invasion','coup','assassination','airstrike','explosion','bombed','operation','combat','naval','khamenei','iran war','escalat'];
+const HK=['conflict','military','troops','sanctions','crisis','threat','deployed','clashes','casualties','hezbollah','hamas','houthi','strait','hormuz','gulf','drone','warship','navy','air force','ceasefire'];
+
+function classify(t){
+  const x=t.toLowerCase();
+  if(CK.some(k=>x.includes(k)))return'crit';
+  if(HK.some(k=>x.includes(k)))return'high';
+  return'med';
+}
+
+async function fetchNews(){
+  if(!apiKey){toast('⚠ Connect Groq key first','warn');return;}
+  document.getElementById('newsDot').className='g-dot fetch';
+  document.getElementById('newsStatus').textContent='NEWS: FETCHING...';
+  document.getElementById('newsList').innerHTML=Array(6).fill('<div class="g-news-skeleton" style="height:56px;"></div>').join('');
+
+  const proxy='https://api.allorigins.win/get?url=';
+  let all=[];const seen=new Set();
+
+  await Promise.allSettled(FEEDS.map(async f=>{
+    try{
+      const res=await fetch(proxy+encodeURIComponent(f.url));
+      const data=await res.json();
+      const xml=new DOMParser().parseFromString(data.contents,'text/xml');
+      Array.from(xml.querySelectorAll('item')).slice(0,20).forEach(item=>{
+        const title=(item.querySelector('title')?.textContent||'').replace(/<[^>]*>/g,'').trim();
+        const desc=(item.querySelector('description')?.textContent||'').replace(/<[^>]*>/g,'').trim().slice(0,200);
+        const link=item.querySelector('link')?.textContent?.trim()||item.querySelector('guid')?.textContent?.trim()||'';
+        if(title&&title.length>10&&!seen.has(title)){
+          seen.add(title);
+          all.push({title,desc,link,source:f.src,sev:classify(title+' '+desc),selected:false});
+        }
+      });
+    }catch(e){}
+  }));
+
+  let demo=false;
+  if(all.length<5){all=getDemoNews();demo=true;}
+  all.sort((a,b)=>({crit:0,high:1,med:2}[a.sev]-{crit:0,high:1,med:2}[b.sev]));
+  news=all;
+
+  document.getElementById('newsDot').className='g-dot live';
+  document.getElementById('newsStatus').textContent=demo?'NEWS: DEMO DATA':`NEWS: ${all.length} ITEMS`;
+  document.getElementById('newsCount').textContent=`${all.length} items`;
+  renderNews();updateCtx();
+  if(!demo)toast(`✓ ${all.length} articles from ${FEEDS.length} sources`,'ok');
+}
+
+function getDemoNews(){
+  return[
+    {title:'US-Israel strikes on Iran enter third week — Operation Epic Fury continues',source:'Reuters',sev:'crit',selected:true,desc:'Joint air campaign targeting Iranian assets across 26 of 31 provinces. 2000+ dead.',link:'https://reuters.com'},
+    {title:'Iran launches renewed missile barrage at Gulf states and Israel',source:'BBC',sev:'crit',selected:true,desc:'Tehran attacking all 6 GCC states — unprecedented escalation. Oil infrastructure hit.',link:'https://bbc.com'},
+    {title:'Strait of Hormuz closure threat: US deploys additional carrier strike groups',source:'Defense News',sev:'crit',selected:true,desc:'5th Fleet reinforced. 7 allies pledge escort. Oil at $180/barrel.',link:'https://defensenews.com'},
+    {title:'Hezbollah resumes attacks on Israel in solidarity with Iran',source:'Al Jazeera',sev:'crit',selected:true,desc:'Lebanon conflict reignited. Lebanese govt banning Hezbollah ops. IDF strikes.',link:'https://aljazeera.com'},
+    {title:"Khamenei dead: Iran's successor Mojtaba Khamenei consolidating power",source:'Guardian',sev:'crit',selected:false,desc:"Son of Supreme Leader named by surviving IRGC. Legitimacy disputed internationally.",link:'https://theguardian.com'},
+    {title:'Russia providing Iran intelligence for US base targeting — AP',source:'NYT',sev:'crit',selected:false,desc:'Moscow-Tehran intelligence sharing confirmed. Russia exploiting NATO distraction.',link:'https://nytimes.com'},
+    {title:'Oil prices hit $180/barrel as Hormuz situation deteriorates',source:'Reuters',sev:'high',selected:false,desc:'WTO warns of global inflation. G7 refuses joint reserve release. Bangladesh, Pakistan economic shock.',link:'https://reuters.com'},
+    {title:'Russia launches major offensive in Ukraine as NATO diverted to Iran',source:'BBC',sev:'high',selected:false,desc:'Russian forces pressing Kharkiv front. NATO support strained.',link:'https://bbc.com'},
+    {title:'China intensifies Taiwan Strait exercises amid Iran crisis',source:'Defense News',sev:'high',selected:false,desc:'PLA Pacific Fleet maneuvers. Analysts warn of opportunistic window.',link:'https://defensenews.com'},
+    {title:'North Korea tests ICBM while US focused on Middle East',source:'Defense News',sev:'high',selected:false,desc:'DPRK missile reached 6000km altitude. Kim watching Iran war carefully.',link:'https://defensenews.com'},
+    {title:'NSA Bahrain strike damages US 5th Fleet facilities',source:'Reuters',sev:'crit',selected:false,desc:'Iranian ballistic missiles struck US Navy HQ. Multiple casualties. Fleet operations disrupted.',link:'https://reuters.com'},
+    {title:'Houthis signal Red Sea attack resumption in Iran solidarity',source:'Middle East Eye',sev:'high',selected:false,desc:'Houthi leadership ended restraint. Suez traffic already declining.',link:'https://middleeasteye.net'},
+    {title:'Global food security crisis: Iran war disrupts fertilizer from Gulf',source:'Foreign Policy',sev:'high',selected:false,desc:'CSIS warns of fertilizer shock hitting MENA and Africa. Food prices rising globally.',link:'https://foreignpolicy.com'},
+    {title:'Sudan war enters third year: 10 million displaced, famine conditions',source:'Al Jazeera',sev:'high',selected:false,desc:'RSF advances continue. International attention diverted by Iran.',link:'https://aljazeera.com'},
+    {title:'Iran nuclear stockpile status unknown after strikes — IAEA loses access',source:'Foreign Policy',sev:'crit',selected:false,desc:'440kg of 60% enriched uranium unaccounted for. US Congress alarmed.',link:'https://foreignpolicy.com'},
+  ];
+}
+
+function setFilter(f){
+  newsFilter=f;
+  document.querySelectorAll('.g-fbtn').forEach(b=>b.classList.remove('on','cr','hi'));
+  const ids={'all':'fa','crit':'fc','high':'fh','med':'fm','Reuters':'fR','BBC':'fB','Al Jazeera':'fA','Defense':'fD','NYT':'fN','Guardian':'fG','Foreign':'fF'};
+  const btn=document.getElementById(ids[f]);
+  if(btn){btn.classList.add('on');if(f==='crit')btn.classList.add('cr');if(f==='high')btn.classList.add('hi');}
+  renderNews();
+}
+
+function renderNews(){
+  const list=document.getElementById('newsList');
+  const filtered=news.filter(n=>{
+    if(newsFilter==='all')return true;
+    if(['crit','high','med'].includes(newsFilter))return n.sev===newsFilter;
+    return n.source.toLowerCase().includes(newsFilter.toLowerCase());
+  });
+  if(!filtered.length){list.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:0.7em;">No articles match filter</div>';return;}
+  list.innerHTML=filtered.map(n=>{
+    const i=news.indexOf(n);
+    return`<div class="g-news-item ${n.sev} ${n.selected?'sel':''}" onclick="toggleNews(${i})">
+      <div class="g-news-meta"><span class="g-news-src">${n.source}</span><span class="g-sev sev-${n.sev}">${n.sev==='crit'?'CRITICAL':n.sev==='high'?'HIGH':'MED'}</span></div>
+      <div class="g-news-title">${n.title}</div>
+      ${n.link?`<a href="${n.link}" target="_blank" class="g-news-link" onclick="event.stopPropagation()">↗ ${n.source} — open article</a>`:''}
+    </div>`;
+  }).join('');
+}
+
+function toggleNews(i){news[i].selected=!news[i].selected;renderNews();updateCtx();if(layers.news)renderNewsOnMap(news);}
+function selAll(){
+  const f=news.filter(n=>newsFilter==='all'?true:['crit','high','med'].includes(newsFilter)?n.sev===newsFilter:n.source.toLowerCase().includes(newsFilter.toLowerCase()));
+  f.forEach(n=>n.selected=true);renderNews();updateCtx();toast(`✓ ${f.length} selected`,'ok');
+}
+function deselAll(){news.forEach(n=>n.selected=false);renderNews();updateCtx();if(layers.news)renderNewsOnMap(news);}
+
+function updateCtx(){
+  const sel=news.filter(n=>n.selected).length;
+  document.getElementById('ctxInfo').innerHTML=sel>0?`<span>${sel} articles in context</span>`:`${news.length} loaded — click to add context`;
+  const p=document.getElementById('ctxPill');
+  if(sel>0){p.style.display='flex';document.getElementById('ctxCount').textContent=`${sel} in context`;}
+  else p.style.display='none';
+}
+
+// ── PROMPTS ───────────────────────────────────────────────
+const PROMPTS={
+  iran:`PRIORITY BRIEF — US-ISRAEL-IRAN WAR (MARCH 2026)\n\nOn Feb 28 2026, US and Israel launched Operation Epic Fury. Khamenei killed. Iran retaliating across all of Middle East.\n\n### CURRENT BATTLEFIELD STATUS\n### KEY DECISION MAKERS AND ACTORS\n### STRAIT OF HORMUZ RISK ASSESSMENT\n### ESCALATION PATHWAYS (next 7-30 days)\n### NUCLEAR RISK ASSESSMENT\n### ENERGY AND ECONOMIC SHOCK\n### WILDCARDS: Russia, China, North Korea, Houthis`,
+  predict:`Based on the current news feed and Iran war context, predict the top 5 most likely escalations in the next 30 days. For each: probability %, trigger events, actors, and threshold indicators to watch. Include: Iran war trajectory, Russia Ukraine opportunism, China Taiwan window, DPRK exploitation, Houthi resumption.`,
+  consequences:`Analyze cascading consequences of the Iran war over 3-6 months:\n\n### ENERGY & OIL MARKETS\n### GLOBAL ECONOMIC IMPACT\n### MILITARY ESCALATION RISK\n### NUCLEAR THRESHOLD RISK\n### HUMANITARIAN CRISIS (Iran, Lebanon, region)\n### SECOND-ORDER EFFECTS (Russia/Ukraine, China/Taiwan, North Korea, Sahel)\n\nProbability for each major outcome.`,
+  scenarios:`Generate 3 Iran war scenarios:\n\n**BEST CASE** (25%): Rapid ceasefire, regime transition, Hormuz open\n**BASE CASE** (55%): Prolonged attrition, partial Hormuz disruption, regional proxy war\n**WORST CASE** (20%): Regional conflagration, Hormuz closed, nuclear threshold crossed\n\nFor each: timeline, key decision points, economic impact, death toll estimate.`,
+  hotspots:`Rank top 8 global hotspots as of March 2026. For each: threat index (0-100), key actors, 30-day escalation probability, critical assets at risk, and watch indicators. Must cover: Iran war theater, Ukraine, Taiwan, Korea, Houthis/Red Sea, Lebanon, Sudan, Haiti.`,
+  brief:`FULL STRATEGIC INTELLIGENCE BRIEF — MARCH 2026\n\n### EXECUTIVE SUMMARY (3 bullet priority threats)\n### IRAN WAR THEATER (current status + 30-day outlook)\n### EUROPEAN THEATER (Ukraine, NATO, Russia opportunism)\n### INDO-PACIFIC (Taiwan, Korea, China posture)\n### ENERGY & ECONOMIC SECURITY (Hormuz, oil, food)\n### HUMANITARIAN CRISES (Sudan, Myanmar, Haiti, Lebanon)\n### 30-DAY PREDICTION MATRIX\n### RECOMMENDED WATCHLIST (5 key indicators)`,
+  hormuz:`Full Strait of Hormuz intelligence assessment:\n- Current Iranian threat level and capabilities\n- What partial vs full closure means (20% of global oil)\n- US carrier group deployments and escort capacity\n- 7-nation coalition pledge — who and what capabilities\n- Alternative routes (Cape of Good Hope, trans-Arabian pipelines) and their limits\n- Probability of closure: partial (30%), significant (50%), full (100%)\n- Historical precedent: Tanker War 1984-88 comparison\n- Economic impact per scenario: oil price, inflation, GDP impact\n- Timeline to resolution under each scenario`,
+  energy:`Energy market intelligence — March 2026:\n### OIL: Current price ~$180/barrel — where is it going?\n### HORMUZ CLOSURE SCENARIOS AND OIL IMPACT\n### SAUDI/UAE INFRASTRUCTURE DAMAGE ASSESSMENT\n### ALTERNATIVE SUPPLY CAPACITY (US shale, Russia, Nigeria, Libya)\n### STRATEGIC PETROLEUM RESERVES — G7 status\n### GLOBAL INFLATION PROJECTION (IMF: +0.5% per 10% oil increase)\n### ENERGY WINNERS: Russia, US shale, Norway, Qatar LNG\n### ENERGY LOSERS: Europe, Japan, South Korea, South Asia\n### 30/90/180 day oil price prediction range`,
+  nuclear:`Nuclear risk assessment — March 2026:\n- Iran nuclear stockpile status: 440kg 60% enriched uranium at Isfahan — what remains?\n- IAEA access completely lost since Feb 28 — intelligence gap\n- Iran crossing nuclear threshold as existential response: probability?\n- Israel's undeclared arsenal (~90 warheads) and deterrence doctrine\n- US extended deterrence credibility after war initiation\n- Pakistan factor — nuclear armed Sunni state watching carefully\n- Russia signaling to US (providing Iran intelligence) — escalation dynamic\n- Scenario: Iran detonates device in uninhabited area as demonstration\n- Scenario: Iran uses device against Israel or US base\n- Overall nuclear use probability in 90 days — provide honest assessment`,
+  russia:`Russian strategic calculus in the Iran war:\n- What is Moscow gaining from US-NATO distraction in Middle East?\n- Russia-Iran intelligence sharing — how deep and what impact?\n- Ukraine offensive opportunism — where is Russia pressing?\n- Russia as spoiler vs peacemaker — which role serves Moscow better?\n- Russian energy windfall from $180 oil despite sanctions\n- China-Russia-Iran triangle — coordinated or opportunistic?\n- NATO cohesion test: can alliance handle two theaters simultaneously?\n- Putin's end-game in Ukraine given current window\n- Probability of major Russian breakthrough in Ukraine in next 60 days`,
+  china:`China strategic assessment — Iran war implications:\n- What does Beijing see in the current US military overextension?\n- Taiwan Strait: is this the window? What are the indicators?\n- China's economic exposure to Iran war (oil imports, Hormuz dependency)\n- China-Iran relations — will Beijing defend Tehran diplomatically?\n- PLA Pacific Fleet exercises — posturing or preparation?\n- US carrier redeployment to Persian Gulf — Taiwan defense gap\n- Xi Jinping's decision calculus: opportunity vs risk of US/allied response\n- 60-day Taiwan Strait escalation probability assessment\n- Global supply chain shock if both Iran and Taiwan theaters open simultaneously`,
+};
+
+function qp(type){document.getElementById('chatInput').value=PROMPTS[type]||'';autoResize();send();}
+
+// ── CHAT ──────────────────────────────────────────────────
+async function send(){
+  if(loading||!apiKey)return;
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();if(!msg)return;
+  input.value='';input.style.height='38px';
+  loading=true;document.getElementById('sendBtn').disabled=true;
+  setStatus('thinking');
+  document.getElementById('welcomeMsg')?.remove();
+  addMsg('user',msg);history.push({role:'user',content:msg});
+
+  const ctx=news.filter(n=>n.selected);
+  const ctxText=ctx.length>0
+    ?ctx.map(n=>`[${n.source}] ${n.title}${n.desc?': '+n.desc:''}`).join('\n')
+    :news.slice(0,12).map(n=>`[${n.source}] ${n.title}`).join('\n')||'No live news loaded.';
+
+  const sys=`You are GEORG — Geopolitical Event Observer and Response Generator. Elite intelligence analyst operating in MARCH 2026.
+
+CRITICAL CURRENT INTELLIGENCE — MARCH 2026:
+• February 28, 2026: US + Israel launched OPERATION EPIC FURY — massive joint strike campaign against Iran
+• Supreme Leader Ali Khamenei was KILLED in the opening strikes
+• Iran is retaliating: hundreds of missiles and drones against Israel, US bases in Bahrain (NSA Bahrain struck), Qatar (Al Udeid struck), Kuwait, Jordan (Al-Tanf struck), and ALL 6 GCC states — unprecedented
+• The Strait of Hormuz is under threat — 20% of world oil supply. Oil at ~$180/barrel. Closure probability rising
+• Lebanon/Hezbollah has re-entered the war attacking Israel in solidarity with Iran
+• Russia is providing Iran intelligence on US base targeting (AP sources confirmed)
+• China increasing Taiwan Strait exercises while US is distracted
+• North Korea tested an ICBM during the crisis
+• Russia pressing Ukraine offensive with NATO attention diverted
+• The Iran war is the most dangerous geopolitical event since the Cuban Missile Crisis
+• The ceasefire from the Twelve-Day War (June 2025) has completely collapsed
+• Iran's nuclear stockpile status is UNKNOWN — IAEA has no access
+
+THIS IS NOT HISTORY — THIS IS NOW. Analyze as a current live crisis.
+
+ANALYTICAL STANDARDS:
+- Intelligence-grade structured analysis — direct, specific, no hedging
+- Use ### for section headers, **bold** for key entities
+- Probability percentages on all predictions
+- Second and third order effects
+- Reference specific weapons, bases, chokepoints, actors
+- Flag *imminent* threats with emphasis
+
+LIVE NEWS CONTEXT:
+${ctxText}`;
+
+  const typing=addTyping();
+  try{
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+      body:JSON.stringify({
+        model:'llama-3.3-70b-versatile',
+        messages:[{role:'system',content:sys},...history.slice(-12)],
+        temperature:0.65,max_tokens:1800
+      })
+    });
+    typing.remove();
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      const detail=err.error?.message||'Unknown error';
+      const kp=apiKey?apiKey.slice(0,8)+'...'+apiKey.slice(-4):'EMPTY';
+      if(res.status===401)addMsg('ai',`⚠ **Invalid API key** (401).\n\nKey: \`${kp}\`\n\nClear and reconnect. Error: ${detail}`);
+      else if(res.status===429)addMsg('ai',`⚠ **Rate limit.** Wait a moment. ${detail}`);
+      else addMsg('ai',`⚠ **API Error ${res.status}:** ${detail}`);
+      setStatus('error');return;
+    }
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'No response.';
+    history.push({role:'assistant',content:reply});
+    addMsg('ai',reply);setStatus('online');
+  }catch(e){
+    typing.remove();
+    addMsg('ai',`⚠ **Connection error:** ${e.message}`);
+    setStatus('error');
+  }finally{loading=false;document.getElementById('sendBtn').disabled=false;}
+}
+
+function addMsg(role,content){
+  const el=document.getElementById('messages');
+  const div=document.createElement('div');
+  div.className=`g-msg ${role}`;
+  const time=new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
+  div.innerHTML=`<div class="g-avatar ${role}">${role==='ai'?'G':'▲'}</div><div class="g-msg-body"><div class="g-msg-meta">${role==='ai'?'GEORG ANALYST':'OPERATOR'} · ${time}</div><div class="g-bubble">${fmt(content)}</div></div>`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;return div;
+}
+
+function addTyping(){
+  const el=document.getElementById('messages');
+  const div=document.createElement('div');
+  div.className='g-msg ai';
+  div.innerHTML=`<div class="g-avatar ai">G</div><div class="g-msg-body"><div class="g-msg-meta">GEORG ANALYST · Analyzing...</div><div class="g-bubble"><div class="g-typing"><div class="g-tdot"></div><div class="g-tdot"></div><div class="g-tdot"></div></div></div></div>`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;return div;
+}
+
+function fmt(text){
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/### (.+)/g,'<h3>$1</h3>').replace(/## (.+)/g,'<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^[-•] (.+)/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>\n?)+/g,m=>`<ul>${m}</ul>`)
+    .replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>');
+}
+
+function clearChat(){
+  history=[];
+  document.getElementById('messages').innerHTML=`<div class="g-welcome" id="welcomeMsg"><span class="g-welcome-icon">🛰</span><h2>GEORG v2.0</h2><p>Chat cleared. Ready for analysis.</p></div>`;
+}
+
+function autoResize(){
+  const t=document.getElementById('chatInput');
+  t.style.height='auto';t.style.height=Math.min(t.scrollHeight,100)+'px';
+}
+
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.style.display='block';
+  el.style.borderColor=type==='ok'?'var(--green)':type==='warn'?'var(--amber)':'var(--red)';
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>el.style.display='none',3500);
+}
+
+window.addEventListener('load',()=>{
+  if(typeof L==='undefined'){
+    document.getElementById('georg-map').innerHTML='<div style="color:var(--text3);font-family:var(--mono);font-size:0.75em;padding:20px;text-align:center;">⚠ Map requires internet</div>';
+  }else{initMap();}
+
+  if(apiKey){
+    document.getElementById('apiInput').value=apiKey;
+    setStatus('online');document.getElementById('sendBtn').disabled=false;
+    document.getElementById('keyHint').textContent='● CONNECTED';
+    document.getElementById('keyHint').style.color='var(--green)';
+    fetchNews();
+  }
+
+  const input=document.getElementById('chatInput');
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+  input.addEventListener('input',autoResize);
+});
+</script>
+</body>
+</html>
